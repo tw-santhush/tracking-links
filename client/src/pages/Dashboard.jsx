@@ -52,8 +52,8 @@ export default function Dashboard({ user }) {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const d = await res.json();
-        return setError(d.error);
+        const d = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        return setError(d.error || 'Request failed');
       }
       setDestination(''); setLabel(''); setSlug(''); setPassword(''); setExpiresAt('');
       setUtms({ source: '', medium: '', campaign: '' });
