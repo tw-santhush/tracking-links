@@ -95,33 +95,42 @@ function trackingPageHtml(link, error) {
 </head>
 <body>
   <div class="card" id="app">
-    <h2>Redirecting...</h2>
-    <div class="spinner"></div>
+    <h2>You're being redirected</h2>
+    <p>Click the button to continue.</p>
+    <button class="btn" id="continueBtn">Continue to site</button>
+    <p class="text-sm text-muted" style="margin-top:12px;font-size:0.8rem;color:#999;" id="status"></p>
   </div>
 
   <script>
     const link = ${JSON.stringify({ code: link.code, hasPassword: !!link.password_hash, destination: link.destination, expiresAt: link.expires_at })};
 
-    function getClientGeo() {
-      return new Promise((resolve) => {
+    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+      document.getElementById('app').innerHTML = '<h2>Link Expired</h2><p>This link is no longer available.</p>';
+    }
+
+    function showContinueButton() {
+      document.getElementById('app').innerHTML = \`
+        <h2>You're being redirected</h2>
+        <p>Click the button to continue.</p>
+        <button class="btn" id="continueBtn">Continue to site</button>
+        <p class="text-sm text-muted" style="margin-top:12px;font-size:0.8rem;color:#999;" id="status"></p>
+      \`;
+      document.getElementById('continueBtn').addEventListener('click', onContinue);
+    }
+
+    async function onContinue() {
+      document.getElementById('status').textContent = 'Capturing location...';
+      const geo = await new Promise((resolve) => {
         if (!navigator.geolocation) return resolve(null);
         navigator.geolocation.getCurrentPosition(
           (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
           () => resolve(null),
-          { timeout: 3000, enableHighAccuracy: false }
+          { timeout: 5000, enableHighAccuracy: true }
         );
       });
-    }
 
-    async function redirect() {
-      if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-        document.getElementById('app').innerHTML = '<h2>Link Expired</h2><p>This link is no longer available.</p>';
-        return;
-      }
-
-      const geo = await getClientGeo();
+      document.getElementById('status').textContent = 'Redirecting...';
       const body = { clientLat: geo?.lat || null, clientLng: geo?.lng || null };
-
       try {
         await fetch('/api/track/' + link.code + '/click', {
           method: 'POST',
@@ -129,7 +138,6 @@ function trackingPageHtml(link, error) {
           body: JSON.stringify(body)
         });
       } catch (e) {}
-
       window.location.replace(link.destination);
     }
 
@@ -142,7 +150,7 @@ function trackingPageHtml(link, error) {
         <div id="error" class="error"></div>
       \`;
     } else {
-      redirect();
+      showContinueButton();
     }
 
     async function verifyPassword() {
@@ -161,7 +169,7 @@ function trackingPageHtml(link, error) {
         }
         link.destination = data.destination;
         link.hasPassword = false;
-        redirect();
+        showContinueButton();
       } catch (e) {
         document.getElementById('error').textContent = 'Network error';
       }
