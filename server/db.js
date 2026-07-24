@@ -64,15 +64,23 @@ const api = {
       password TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     )`);
+
     db.exec(`CREATE TABLE IF NOT EXISTS links (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       code TEXT UNIQUE NOT NULL,
       destination TEXT NOT NULL,
       label TEXT DEFAULT '',
+      slug TEXT DEFAULT '',
+      password_hash TEXT DEFAULT '',
+      expires_at TEXT,
+      utm_source TEXT DEFAULT '',
+      utm_medium TEXT DEFAULT '',
+      utm_campaign TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     )`);
+
     db.exec(`CREATE TABLE IF NOT EXISTS clicks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       link_id INTEGER NOT NULL,
@@ -80,10 +88,13 @@ const api = {
       lat REAL,
       lng REAL,
       address TEXT,
+      client_lat REAL,
+      client_lng REAL,
       user_agent TEXT,
       timestamp TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (link_id) REFERENCES links(id)
     )`);
+
     save();
   }
 };

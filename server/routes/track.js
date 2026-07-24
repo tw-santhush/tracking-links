@@ -1,6 +1,7 @@
 const express = require('express');
 const https = require('https');
 const http = require('http');
+const bcrypt = require('bcryptjs');
 const db = require('../db');
 
 const router = express.Router();
@@ -61,10 +62,127 @@ function getPublicIp() {
   });
 }
 
+function appendUtm(url, link) {
+  if (!link.utm_source && !link.utm_medium && !link.utm_campaign) return url;
+  const params = [];
+  if (link.utm_source) params.push(`utm_source=${encodeURIComponent(link.utm_source)}`);
+  if (link.utm_medium) params.push(`utm_medium=${encodeURIComponent(link.utm_medium)}`);
+  if (link.utm_campaign) params.push(`utm_campaign=${encodeURIComponent(link.utm_campaign)}`);
+  const separator = url.includes('?') ? '&' : '?';
+  return url + separator + params.join('&');
+}
+
+function trackingPageHtml(link, error) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting...</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 400px; width: 100%; text-align: center; }
+    h2 { margin-bottom: 16px; }
+    p { margin-bottom: 12px; color: #555; font-size: 0.9rem; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; margin-bottom: 12px; }
+    .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; background: #0f3460; color: #fff; width: 100%; }
+    .btn:hover { opacity: 0.85; }
+    .error { color: #e74c3c; font-size: 0.85rem; margin-top: 8px; }
+    .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #0f3460; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 12px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card" id="app">
+    <h2>Redirecting...</h2>
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    const link = ${JSON.stringify({ code: link.code, hasPassword: !!link.password_hash, destination: link.destination, expiresAt: link.expires_at })};
+
+    function getClientGeo() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => resolve(null),
+          { timeout: 3000, enableHighAccuracy: false }
+        );
+      });
+    }
+
+    async function redirect() {
+      if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+        document.getElementById('app').innerHTML = '<h2>Link Expired</h2><p>This link is no longer available.</p>';
+        return;
+      }
+
+      const geo = await getClientGeo();
+      const body = { clientLat: geo?.lat || null, clientLng: geo?.lng || null };
+
+      try {
+        await fetch('/api/track/' + link.code + '/click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      } catch (e) {}
+
+      window.location.replace(link.destination);
+    }
+
+    if (link.hasPassword) {
+      document.getElementById('app').innerHTML = \`
+        <h2>Password Required</h2>
+        <p>This link is password-protected.</p>
+        <input type="password" id="password" placeholder="Enter password" />
+        <button class="btn" onclick="verifyPassword()">Submit</button>
+        <div id="error" class="error"></div>
+      \`;
+    } else {
+      redirect();
+    }
+
+    async function verifyPassword() {
+      const password = document.getElementById('password').value;
+      document.getElementById('error').textContent = '';
+      try {
+        const res = await fetch('/api/track/' + link.code + '/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          document.getElementById('error').textContent = data.error || 'Wrong password';
+          return;
+        }
+        link.destination = data.destination;
+        link.hasPassword = false;
+        redirect();
+      } catch (e) {
+        document.getElementById('error').textContent = 'Network error';
+      }
+    }
+  </script>
+</body>
+</html>`;
+}
+
 router.get('/:code', async (req, res) => {
   const link = db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
   if (!link) {
     return res.status(404).send('Link not found');
+  }
+
+  if (link.expires_at && new Date(link.expires_at) < new Date()) {
+    return res.status(410).send('This link has expired');
+  }
+
+  if (link.password_hash) {
+    return res.send(trackingPageHtml(link));
   }
 
   let ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
@@ -86,7 +204,61 @@ router.get('/:code', async (req, res) => {
     [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, req.headers['user-agent'] || null]
   );
 
-  res.redirect(301, link.destination);
+  res.redirect(301, appendUtm(link.destination, link));
+});
+
+router.post('/:code/click', async (req, res) => {
+  const link = db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
+  if (!link) return res.status(404).json({ error: 'Link not found' });
+
+  const { clientLat, clientLng } = req.body || {};
+
+  let ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.socket.remoteAddress
+    || '127.0.0.1';
+
+  if (ip === '::1' || ip === '127.0.0.1') {
+    ip = await getPublicIp() || ip;
+  }
+
+  const geo = ip ? await geoLookup(ip) : null;
+  let address = null;
+  if (geo) {
+    address = await reverseGeocode(geo.lat, geo.lng);
+  }
+
+  db.run(
+    'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, req.headers['user-agent'] || null]
+  );
+
+  res.json({ ok: true });
+});
+
+router.post('/:code/info', (req, res) => {
+  const link = db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
+  if (!link) return res.status(404).json({ error: 'Link not found' });
+
+  const expired = link.expires_at && new Date(link.expires_at) < new Date();
+
+  res.json({
+    code: link.code,
+    destination: link.destination,
+    hasPassword: !!link.password_hash,
+    expired
+  });
+});
+
+router.post('/:code/verify', (req, res) => {
+  const link = db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
+  if (!link) return res.status(404).json({ error: 'Link not found' });
+
+  const { password } = req.body || {};
+  if (!password || !bcrypt.compareSync(password, link.password_hash)) {
+    return res.status(401).json({ error: 'Invalid password' });
+  }
+
+  res.json({ destination: appendUtm(link.destination, link) });
 });
 
 module.exports = router;
