@@ -7,30 +7,35 @@ const requireAuth = require('../middleware/auth');
 const router = express.Router();
 
 router.post('/', requireAuth, (req, res) => {
-  const { destination, label, slug, password, expires_at, utm_source, utm_medium, utm_campaign } = req.body;
-  if (!destination) {
-    return res.status(400).json({ error: 'Destination URL required' });
+  try {
+    const { destination, label, slug, password, expires_at, utm_source, utm_medium, utm_campaign } = req.body;
+    if (!destination) {
+      return res.status(400).json({ error: 'Destination URL required' });
+    }
+
+    const code = slug && slug.trim() ? slug.trim().replace(/[^a-zA-Z0-9_-]/g, '') : nanoid(8);
+    if (!code) {
+      return res.status(400).json({ error: 'Invalid slug' });
+    }
+
+    const existing = db.get('SELECT id FROM links WHERE code = ?', [code]);
+    if (existing) {
+      return res.status(409).json({ error: 'Slug already taken' });
+    }
+
+    const passwordHash = password ? bcrypt.hashSync(password, 10) : '';
+
+    const id = db.runAndGetId(
+      `INSERT INTO links (user_id, code, destination, label, slug, password_hash, expires_at, utm_source, utm_medium, utm_campaign)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.session.userId, code, destination, label || '', slug || '', passwordHash, expires_at || null, utm_source || '', utm_medium || '', utm_campaign || '']
+    );
+    const link = db.get('SELECT * FROM links WHERE id = ?', [id]);
+    res.json(link);
+  } catch (err) {
+    console.error('POST /api/links error:', err);
+    res.status(500).json({ error: err.message });
   }
-
-  const code = slug && slug.trim() ? slug.trim().replace(/[^a-zA-Z0-9_-]/g, '') : nanoid(8);
-  if (!code) {
-    return res.status(400).json({ error: 'Invalid slug' });
-  }
-
-  const existing = db.get('SELECT id FROM links WHERE code = ?', [code]);
-  if (existing) {
-    return res.status(409).json({ error: 'Slug already taken' });
-  }
-
-  const passwordHash = password ? bcrypt.hashSync(password, 10) : '';
-
-  const id = db.runAndGetId(
-    `INSERT INTO links (user_id, code, destination, label, slug, password_hash, expires_at, utm_source, utm_medium, utm_campaign)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [req.session.userId, code, destination, label || '', slug || '', passwordHash, expires_at || null, utm_source || '', utm_medium || '', utm_campaign || '']
-  );
-  const link = db.get('SELECT * FROM links WHERE id = ?', [id]);
-  res.json(link);
 });
 
 router.get('/', requireAuth, (req, res) => {
