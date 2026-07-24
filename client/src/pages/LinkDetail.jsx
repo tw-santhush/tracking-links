@@ -37,12 +37,45 @@ function groupBy(arr, keyFn) {
   return map;
 }
 
+function parseFingerprint(fp) {
+  if (!fp) return null;
+  try { return typeof fp === 'string' ? JSON.parse(fp) : fp; } catch { return null; }
+}
+
+function formatFpValue(v) {
+  if (v === null || v === undefined) return '-';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function FingerprintView({ data }) {
+  const fp = parseFingerprint(data);
+  if (!fp) return <p className="text-muted text-sm">No fingerprint data</p>;
+  const rows = [];
+  for (const [key, val] of Object.entries(fp)) {
+    if (val === null || val === undefined) continue;
+    if (typeof val === 'object' && Object.keys(val).length === 0) continue;
+    rows.push(
+      <tr key={key}>
+        <td className="fp-key">{key}</td>
+        <td className="fp-val">{formatFpValue(val)}</td>
+      </tr>
+    );
+  }
+  return (
+    <table className="fp-table">
+      <tbody>{rows}</tbody>
+    </table>
+  );
+}
+
 export default function LinkDetail() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [allClicks, setAllClicks] = useState([]);
+  const [expandedFp, setExpandedFp] = useState(null);
 
   useEffect(() => {
     fetch(`${API}/links/${id}?page=${page}&limit=20`, { credentials: 'include' })
@@ -157,6 +190,7 @@ export default function LinkDetail() {
                     <th>Client Geo</th>
                     <th>Address</th>
                     <th>Device</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -168,11 +202,22 @@ export default function LinkDetail() {
                       <td>{click.client_lat ? `${click.client_lat.toFixed(4)}, ${click.client_lng.toFixed(4)}` : '-'}</td>
                       <td className="address-cell" title={click.address || ''}>{click.address || '-'}</td>
                       <td className="address-cell" title={click.user_agent || ''}>{click.user_agent ? click.user_agent.substring(0, 40) + '...' : '-'}</td>
+                      <td>
+                        {click.fingerprint && (
+                          <button className="btn btn-sm btn-secondary" onClick={() => setExpandedFp(expandedFp === click.id ? null : click.id)}>FP</button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {expandedFp && (
+              <div className="fp-section">
+                <h4 className="mb-12">Device Fingerprint</h4>
+                <FingerprintView data={allClicks.find(c => c.id === expandedFp)?.fingerprint} />
+              </div>
+            )}
             {hasMore && (
               <div className="flex justify-center mt-12">
                 <button className="btn btn-sm" onClick={() => setPage(p => p + 1)}>Load More</button>
@@ -182,7 +227,7 @@ export default function LinkDetail() {
         )}
       </div>
 
-{(serverPoints.length > 0 || clientPoints.length > 0) && (
+      {(serverPoints.length > 0 || clientPoints.length > 0) && (
         <div className="card">
           <h3 className="mb-12">Click Locations</h3>
           <ClickMap serverPoints={serverPoints} clientPoints={clientPoints} />

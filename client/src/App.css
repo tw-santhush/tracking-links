@@ -218,11 +218,15 @@ input[type="datetime-local"] {
   white-space: nowrap;
 }
 
-.map-container {
+.map-placeholder {
   height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eee;
   border-radius: 8px;
-  overflow: hidden;
-  margin-top: 16px;
+  color: #777;
+  font-size: 0.9rem;
 }
 
 .error {
@@ -253,3 +257,41 @@ input[type="datetime-local"] {
 .justify-between { justify-content: space-between; }
 .text-sm { font-size: 0.85rem; }
 .text-muted { color: #777; }
+
+.fp-section {
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 12px;
+  background: #fafafa;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.fp-table {
+  width: 100%;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+}
+
+.fp-table tr {
+  border-bottom: 1px solid #eee;
+}
+
+.fp-table td {
+  padding: 4px 8px;
+  vertical-align: top;
+}
+
+.fp-key {
+  font-weight: 600;
+  color: #555;
+  width: 200px;
+  white-space: nowrap;
+}
+
+.fp-val {
+  font-family: monospace;
+  word-break: break-all;
+  color: #333;
+}
