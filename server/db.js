@@ -91,6 +91,7 @@ const api = {
       client_lat REAL,
       client_lng REAL,
       user_agent TEXT,
+      fingerprint TEXT,
       timestamp TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (link_id) REFERENCES links(id)
     )`);
@@ -115,6 +116,7 @@ const api = {
     const clicksMigrations = {
       client_lat: "ALTER TABLE clicks ADD COLUMN client_lat REAL",
       client_lng: "ALTER TABLE clicks ADD COLUMN client_lng REAL",
+      fingerprint: "ALTER TABLE clicks ADD COLUMN fingerprint TEXT",
     };
     for (const [col, sql] of Object.entries(clicksMigrations)) {
       if (!existingClicksCols.includes(col)) {
