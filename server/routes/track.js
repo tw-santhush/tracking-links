@@ -181,30 +181,7 @@ router.get('/:code', async (req, res) => {
     return res.status(410).send('This link has expired');
   }
 
-  if (link.password_hash) {
-    return res.send(trackingPageHtml(link));
-  }
-
-  let ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
-    || req.socket.remoteAddress
-    || '127.0.0.1';
-
-  if (ip === '::1' || ip === '127.0.0.1') {
-    ip = await getPublicIp() || ip;
-  }
-
-  const geo = ip ? await geoLookup(ip) : null;
-  let address = null;
-  if (geo) {
-    address = await reverseGeocode(geo.lat, geo.lng);
-  }
-
-  db.run(
-    'INSERT INTO clicks (link_id, ip, lat, lng, address, user_agent) VALUES (?, ?, ?, ?, ?, ?)',
-    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, req.headers['user-agent'] || null]
-  );
-
-  res.redirect(301, appendUtm(link.destination, link));
+  return res.send(trackingPageHtml(link));
 });
 
 router.post('/:code/click', async (req, res) => {
