@@ -312,3 +312,36 @@ input[type="datetime-local"] {
   background: #fff;
   min-width: 140px;
 }
+
+select.filter-input {
+  min-width: 120px;
+  cursor: pointer;
+}
+
+.group-panel {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 16px;
+  background: #f9f9f9;
+}
+
+.group-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  gap: 8px;
+}
+
+.group-row:last-child {
+  border-bottom: none;
+}
+
+.badge-info {
+  background: #e3f2fd;
+  color: #1565c0;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
