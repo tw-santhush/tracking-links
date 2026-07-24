@@ -66,7 +66,8 @@ export default function LinkDetail() {
 
   const { link, clicks, total, hasMore } = data;
   const baseUrl = window.location.origin;
-  const geoPoints = allClicks.filter(c => c.lat && c.lng).map(c => ({ lat: c.lat, lng: c.lng, address: c.address }));
+  const serverPoints = allClicks.filter(c => c.lat && c.lng).map(c => ({ lat: c.lat, lng: c.lng, address: c.address }));
+  const clientPoints = allClicks.filter(c => c.client_lat && c.client_lng).map(c => ({ lat: c.client_lat, lng: c.client_lng }));
 
   const dailyGroups = groupBy(allClicks, c => c.timestamp ? c.timestamp.split(' ')[0] : 'Unknown');
   const days = Object.keys(dailyGroups).sort();
@@ -181,10 +182,10 @@ export default function LinkDetail() {
         )}
       </div>
 
-      {geoPoints.length > 0 && (
+{(serverPoints.length > 0 || clientPoints.length > 0) && (
         <div className="card">
-          <h3 className="mb-12">Click Locations (IP-based)</h3>
-          <ClickMap points={geoPoints} />
+          <h3 className="mb-12">Click Locations</h3>
+          <ClickMap serverPoints={serverPoints} clientPoints={clientPoints} />
         </div>
       )}
     </div>
