@@ -58,14 +58,30 @@ body {
   margin-bottom: 4px;
 }
 
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.flex-1 { flex: 1; }
+
 input[type="text"],
 input[type="email"],
-input[type="password"] {
+input[type="password"],
+input[type="datetime-local"] {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #ccc;
   border-radius: 6px;
   font-size: 0.95rem;
+}
+
+.advanced-section {
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #fafafa;
 }
 
 .btn {
@@ -89,12 +105,16 @@ input[type="password"] {
 
 .btn-primary { background: #0f3460; }
 
+.btn-secondary { background: #7f8c8d; }
+
 .link-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 0;
   border-bottom: 1px solid #eee;
+  position: relative;
+  flex-wrap: wrap;
 }
 
 .link-row:last-child { border-bottom: none; }
@@ -116,6 +136,60 @@ input[type="password"] {
   color: #0f3460;
 }
 
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-warning { background: #fff3cd; color: #856404; }
+.badge-danger { background: #f8d7da; color: #721c24; }
+
+.ml-8 { margin-left: 8px; }
+
+.qr-popup {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-box {
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 6px;
+}
+
+.chart-title {
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
 .click-table {
   width: 100%;
   border-collapse: collapse;
@@ -127,6 +201,7 @@ input[type="password"] {
   text-align: left;
   padding: 10px 8px;
   border-bottom: 1px solid #eee;
+  white-space: nowrap;
 }
 
 .click-table th {
@@ -174,6 +249,7 @@ input[type="password"] {
 .flex { display: flex; }
 .gap-8 { gap: 8px; }
 .items-center { align-items: center; }
+.justify-center { justify-content: center; }
 .justify-between { justify-content: space-between; }
 .text-sm { font-size: 0.85rem; }
 .text-muted { color: #777; }

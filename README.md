@@ -1,22 +1,27 @@
 # Tracking Links
 
-A full-stack web application for generating trackable short links with IP-based geolocation.
+A full-stack web application for generating trackable short links with IP-based geolocation, analytics, and advanced features.
 
 ## Features
 
 - Email/password authentication (session-based)
-- Create short tracking links with labels
-- Track every click: IP, geolocation (lat/lng via ip-api.com), reverse-geocoded address (via Nominatim), user-agent, timestamp
-- Dashboard with click counts per link
-- Per-link detail view with click history table
-- Leaflet map showing click locations
+- Create short tracking links with custom slugs
+- Track every click: IP, server-side geolocation (ip-api.com), client-side geolocation (browser API), reverse-geocoded address (Nominatim), user-agent, timestamp
+- **Password-protected links** — visitors must enter a password before being redirected
+- **Link expiry** — set links to auto-expire at a specific date/time
+- **UTM parameters** — auto-append utm_source, utm_medium, utm_campaign to destination URLs
+- **QR codes** — inline QR code generation for every link
+- **Analytics dashboard** — charts for clicks per day, browser breakdown, OS breakdown
+- **Export** — download click data as JSON or CSV
+- **Pagination** — for links list and click history
+- Leaflet map showing IP-based click locations
 - Redirect visitors to the destination URL after tracking
 
 ## Tech Stack
 
-- **Frontend:** React 18 + Vite, React Router, Leaflet (react-leaflet)
-- **Backend:** Node.js + Express, better-sqlite3 (SQLite), express-session
-- **Geolocation:** ip-api.com (free tier, no API key needed)
+- **Frontend:** React 18 + Vite, React Router, Leaflet (react-leaflet), Chart.js, QRCode.react
+- **Backend:** Node.js + Express, sql.js (SQLite), express-session, bcryptjs
+- **Geolocation:** ip-api.com (free tier, no API key) + browser Geolocation API
 - **Reverse geocoding:** Nominatim / OpenStreetMap (free)
 
 ## Setup
@@ -29,8 +34,6 @@ A full-stack web application for generating trackable short links with IP-based 
 
 ```bash
 cd tracking-links
-
-# Install all dependencies (root, server, client)
 npm install
 cd server && npm install && cd ..
 cd client && npm install && cd ..
@@ -39,15 +42,10 @@ cd client && npm install && cd ..
 ### Run (development)
 
 ```bash
-# From the tracking-links directory — starts both server and client
 npm run dev
 ```
 
-This starts:
-- Backend on `http://localhost:3001`
-- Frontend on `http://localhost:5173` (with proxy to backend)
-
-Open `http://localhost:5173` in your browser.
+Opens at `http://localhost:5173` (frontend proxies API to `http://localhost:3001`).
 
 ### Production build
 
@@ -56,57 +54,39 @@ cd client && npm run build && cd ..
 NODE_ENV=production node server/index.js
 ```
 
-Then open `http://localhost:3001`.
+Open `http://localhost:3001`.
 
-## Free Deployment
+## Deploy to Render (free, no credit card)
 
-### Fly.io (recommended — free tier includes persistent storage)
+1. Push this repo to GitHub
+2. Go to https://dashboard.render.com → **New** → **Web Service**
+3. Connect your repo, use these settings:
 
-```bash
-# Install flyctl
-curl -fsSL https://fly.io/install.sh | sh
+| Setting | Value |
+|---|---|
+| Runtime | `Node` |
+| Build Command | `cd client && npm install --include=dev && node node_modules/vite/bin/vite.js build` |
+| Start Command | `node server/index.js` |
+| Plan | **Free** |
 
-# Login
-fly auth login
-
-# Launch the app (creates fly.toml, provisions resources)
-fly launch --no-deploy
-
-# Create a persistent volume for SQLite (3GB free)
-fly volumes create data --region iad --size 3
-
-# Set a secure session secret
-fly secrets set SESSION_SECRET=$(openssl rand -hex 32)
-
-# Deploy
-fly deploy
-
-# Open the app
-fly open
-```
-
-Your app will be at `https://tracking-links.fly.dev`.
-
-> The free tier includes 3 shared VMs, 3GB persistent storage, and 160GB outbound transfer/month. VMs never sleep on Fly.io.
-
-Set environment variables (optional):
-
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `3001` | Backend port |
-| `SESSION_SECRET` | `change-me-in-production` | Session signing secret |
+4. Add env var: `SESSION_SECRET` = any random string
+5. Deploy
 
 ## How it works
 
 1. Register an account, then log in
-2. Create a tracking link by entering a destination URL and optional label
-3. Share the generated link (e.g. `http://localhost:5173/r/abc123`)
-4. When someone visits the link, the server:
-   - Looks up the visitor's IP via ip-api.com for lat/lng
-   - Reverse-geocodes the coordinates via Nominatim for a human-readable address
-   - Stores the click data (IP, coords, address, user-agent, timestamp)
-   - Redirects (301) to the destination URL
-5. View click analytics on the dashboard
+2. Create a tracking link:
+   - Enter destination URL and optional label
+   - Optionally set a custom slug, password, expiry date, UTM params
+3. Share the generated link (e.g. `https://yourapp.com/r/abc123` or `/r/my-custom-slug`)
+4. When someone visits the link:
+   - If password-protected, a password form is shown
+   - Page attempts client-side geolocation (browser permission)
+   - Server looks up the visitor's IP for lat/lng via ip-api.com
+   - Reverse-geocodes coordinates via Nominatim for a human-readable address
+   - Stores all click data (IP, both geo sources, address, user-agent, timestamp)
+   - Redirects to the destination URL (with UTM params appended if set)
+5. View analytics on the dashboard — charts, maps, exportable data
 
 ## API Routes
 
@@ -116,11 +96,25 @@ Set environment variables (optional):
 | POST | `/api/auth/login` | No | Login |
 | POST | `/api/auth/logout` | No | Logout |
 | GET | `/api/auth/me` | No | Get current user |
-| POST | `/api/links` | Yes | Create link |
-| GET | `/api/links` | Yes | List links |
-| GET | `/api/links/:id` | Yes | Link detail + clicks |
+| POST | `/api/links` | Yes | Create link (supports slug, password, expiry, UTM) |
+| GET | `/api/links` | Yes | List links (paginated) |
+| GET | `/api/links/:id` | Yes | Link detail + clicks (paginated) |
+| PUT | `/api/links/:id` | Yes | Update link |
 | DELETE | `/api/links/:id` | Yes | Delete link |
-| GET | `/r/:code` | No | Track + redirect |
+| GET | `/api/links/:id/export/json` | Yes | Export clicks as JSON |
+| GET | `/api/links/:id/export/csv` | Yes | Export clicks as CSV |
+| GET | `/r/:code` | No | Track + redirect (handles password/expiry) |
+| POST | `/api/track/:code/info` | No | Get link info (password needed? expired?) |
+| POST | `/api/track/:code/verify` | No | Verify password, returns destination |
+| POST | `/api/track/:code/click` | No | Record a click (with optional client geo) |
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3001` | Backend port |
+| `SESSION_SECRET` | `change-me-in-production` | Session signing secret |
+| `DB_PATH` | `server/tracking.db` | SQLite database file path |
 
 ## License
 

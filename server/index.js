@@ -11,7 +11,7 @@ const trackRoutes = require('./routes/track');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : 'http://localhost:5173', credentials: true }));
 app.use(express.json());
 
 app.use(session({
@@ -23,6 +23,7 @@ app.use(session({
 
 app.use('/api/auth', authRoutes);
 app.use('/api/links', linkRoutes);
+app.use('/api/track', trackRoutes);
 app.use('/r', trackRoutes);
 
 if (process.env.NODE_ENV === 'production') {
