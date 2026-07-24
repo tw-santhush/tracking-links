@@ -95,6 +95,33 @@ const api = {
       FOREIGN KEY (link_id) REFERENCES links(id)
     )`);
 
+    const existingLinksCols = (db.exec("PRAGMA table_info('links')")[0]?.values || []).map(v => v[1]);
+    const existingClicksCols = (db.exec("PRAGMA table_info('clicks')")[0]?.values || []).map(v => v[1]);
+
+    const linksMigrations = {
+      slug: "ALTER TABLE links ADD COLUMN slug TEXT DEFAULT ''",
+      password_hash: "ALTER TABLE links ADD COLUMN password_hash TEXT DEFAULT ''",
+      expires_at: "ALTER TABLE links ADD COLUMN expires_at TEXT",
+      utm_source: "ALTER TABLE links ADD COLUMN utm_source TEXT DEFAULT ''",
+      utm_medium: "ALTER TABLE links ADD COLUMN utm_medium TEXT DEFAULT ''",
+      utm_campaign: "ALTER TABLE links ADD COLUMN utm_campaign TEXT DEFAULT ''",
+    };
+    for (const [col, sql] of Object.entries(linksMigrations)) {
+      if (!existingLinksCols.includes(col)) {
+        db.exec(sql);
+      }
+    }
+
+    const clicksMigrations = {
+      client_lat: "ALTER TABLE clicks ADD COLUMN client_lat REAL",
+      client_lng: "ALTER TABLE clicks ADD COLUMN client_lng REAL",
+    };
+    for (const [col, sql] of Object.entries(clicksMigrations)) {
+      if (!existingClicksCols.includes(col)) {
+        db.exec(sql);
+      }
+    }
+
     save();
   }
 };
