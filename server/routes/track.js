@@ -141,6 +141,18 @@ function trackingPageHtml(link, error) {
       window.location.replace(link.destination);
     }
 
+    async function skipGeo() {
+      document.getElementById('app').innerHTML = '<h2>Redirecting...</h2><div class="spinner"></div>';
+      try {
+        await fetch('/api/track/' + link.code + '/click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+      } catch (e) {}
+      window.location.replace(link.destination);
+    }
+
     if (link.hasPassword) {
       document.getElementById('app').innerHTML = \`
         <h2>Password Required</h2>
@@ -150,7 +162,17 @@ function trackingPageHtml(link, error) {
         <div id="error" class="error"></div>
       \`;
     } else {
-      showContinueButton();
+      navigator.permissions.query({ name: 'geolocation' }).then(result => {
+        if (result.state === 'granted') {
+          onContinue();
+        } else if (result.state === 'denied') {
+          skipGeo();
+        } else {
+          showContinueButton();
+        }
+      }).catch(() => {
+        showContinueButton();
+      });
     }
 
     async function verifyPassword() {
