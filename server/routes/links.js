@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.post('/', requireAuth, (req, res) => {
   try {
-    const { destination, label, slug, password, expires_at, utm_source, utm_medium, utm_campaign } = req.body;
+    const { destination, label, slug, password, expires_at, utm_source, utm_medium, utm_campaign, group_id } = req.body;
     if (!destination) {
       return res.status(400).json({ error: 'Destination URL required' });
     }
@@ -26,9 +26,9 @@ router.post('/', requireAuth, (req, res) => {
     const passwordHash = password ? bcrypt.hashSync(password, 10) : '';
 
     const id = db.runAndGetId(
-      `INSERT INTO links (user_id, code, destination, label, slug, password_hash, expires_at, utm_source, utm_medium, utm_campaign)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.session.userId, code, destination, label || '', slug || '', passwordHash, expires_at || null, utm_source || '', utm_medium || '', utm_campaign || '']
+      `INSERT INTO links (user_id, code, destination, label, slug, password_hash, expires_at, utm_source, utm_medium, utm_campaign, group_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.session.userId, code, destination, label || '', slug || '', passwordHash, expires_at || null, utm_source || '', utm_medium || '', utm_campaign || '', group_id || 0]
     );
     const link = db.get('SELECT * FROM links WHERE id = ?', [id]);
     res.json(link);
@@ -42,12 +42,21 @@ router.get('/', requireAuth, (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
   const offset = (page - 1) * limit;
+  const { group_id } = req.query;
 
-  const total = db.get('SELECT COUNT(*) as count FROM links WHERE user_id = ?', [req.session.userId]);
+  let conditions = 'WHERE user_id = ?';
+  const params = [req.session.userId];
+
+  if (group_id) {
+    conditions += ' AND group_id = ?';
+    params.push(parseInt(group_id));
+  }
+
+  const total = db.get(`SELECT COUNT(*) as count FROM links ${conditions}`, params);
   const links = db.all(
     `SELECT l.*, (SELECT COUNT(*) FROM clicks WHERE link_id = l.id) AS click_count
-     FROM links l WHERE l.user_id = ? ORDER BY l.created_at DESC LIMIT ? OFFSET ?`,
-    [req.session.userId, limit, offset]
+     FROM links l ${conditions} ORDER BY l.created_at DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
   );
   const hasMore = offset + links.length < total.count;
 
@@ -66,10 +75,42 @@ router.get('/:id', requireAuth, (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
   const offset = (page - 1) * limit;
 
-  const total = db.get('SELECT COUNT(*) as count FROM clicks WHERE link_id = ?', [link.id]);
+  const { date_from, date_to, browser, os, device } = req.query;
+
+  const conditions = ['link_id = ?'];
+  const params = [link.id];
+
+  if (date_from) { conditions.push('timestamp >= ?'); params.push(date_from + ' 00:00:00'); }
+  if (date_to) { conditions.push('timestamp <= ?'); params.push(date_to + ' 23:59:59'); }
+
+  if (browser) {
+    if (browser === 'Chrome') conditions.push("user_agent LIKE '%Chrome%' AND user_agent NOT LIKE '%Edg%'");
+    else if (browser === 'Firefox') conditions.push("user_agent LIKE '%Firefox%'");
+    else if (browser === 'Safari') conditions.push("user_agent LIKE '%Safari%' AND user_agent NOT LIKE '%Chrome%'");
+    else if (browser === 'Edge') conditions.push("user_agent LIKE '%Edg%'");
+    else if (browser === 'IE') conditions.push("(user_agent LIKE '%MSIE%' OR user_agent LIKE '%Trident%')");
+    else if (browser === 'Other') conditions.push("user_agent NOT LIKE '%Chrome%' AND user_agent NOT LIKE '%Firefox%' AND user_agent NOT LIKE '%Safari%' AND user_agent NOT LIKE '%Edg%' AND user_agent NOT LIKE '%MSIE%' AND user_agent NOT LIKE '%Trident%'");
+  }
+
+  if (os) {
+    if (os === 'Windows') conditions.push("user_agent LIKE '%Windows%'");
+    else if (os === 'macOS') conditions.push("(user_agent LIKE '%Mac OS%' OR user_agent LIKE '%Macintosh%')");
+    else if (os === 'Linux') conditions.push("user_agent LIKE '%Linux%' AND user_agent NOT LIKE '%Android%'");
+    else if (os === 'Android') conditions.push("user_agent LIKE '%Android%'");
+    else if (os === 'iOS') conditions.push("(user_agent LIKE '%iPhone%' OR user_agent LIKE '%iPad%')");
+  }
+
+  if (device) {
+    if (device === 'Mobile') conditions.push("(user_agent LIKE '%Mobi%' OR user_agent LIKE '%Android%' OR user_agent LIKE '%iPhone%')");
+    else if (device === 'Desktop') conditions.push("user_agent NOT LIKE '%Mobi%' AND user_agent NOT LIKE '%Android%' AND user_agent NOT LIKE '%iPhone%'");
+    else if (device === 'Tablet') conditions.push("(user_agent LIKE '%iPad%' OR (user_agent LIKE '%Android%' AND user_agent LIKE '%Tablet%'))");
+  }
+
+  const where = conditions.join(' AND ');
+  const total = db.get(`SELECT COUNT(*) as count FROM clicks WHERE ${where}`, params);
   const clicks = db.all(
-    'SELECT * FROM clicks WHERE link_id = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?',
-    [link.id, limit, offset]
+    `SELECT * FROM clicks WHERE ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
   );
 
   res.json({ link, clicks, total: total.count, page, limit, hasMore: offset + clicks.length < total.count });
@@ -79,7 +120,7 @@ router.put('/:id', requireAuth, (req, res) => {
   const link = db.get('SELECT id FROM links WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId]);
   if (!link) return res.status(404).json({ error: 'Not found' });
 
-  const { label, password, expires_at, utm_source, utm_medium, utm_campaign } = req.body;
+  const { label, password, expires_at, utm_source, utm_medium, utm_campaign, group_id } = req.body;
   const passwordHash = password ? bcrypt.hashSync(password, 10) : undefined;
 
   const fields = [];
@@ -91,6 +132,7 @@ router.put('/:id', requireAuth, (req, res) => {
   if (utm_source !== undefined) { fields.push('utm_source = ?'); values.push(utm_source); }
   if (utm_medium !== undefined) { fields.push('utm_medium = ?'); values.push(utm_medium); }
   if (utm_campaign !== undefined) { fields.push('utm_campaign = ?'); values.push(utm_campaign); }
+  if (group_id !== undefined) { fields.push('group_id = ?'); values.push(group_id); }
 
   if (fields.length > 0) {
     values.push(link.id);

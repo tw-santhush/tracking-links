@@ -77,6 +77,15 @@ const api = {
       utm_source TEXT DEFAULT '',
       utm_medium TEXT DEFAULT '',
       utm_campaign TEXT DEFAULT '',
+      group_id INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`);
+
+    db.exec(`CREATE TABLE IF NOT EXISTS groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     )`);
@@ -106,6 +115,7 @@ const api = {
       utm_source: "ALTER TABLE links ADD COLUMN utm_source TEXT DEFAULT ''",
       utm_medium: "ALTER TABLE links ADD COLUMN utm_medium TEXT DEFAULT ''",
       utm_campaign: "ALTER TABLE links ADD COLUMN utm_campaign TEXT DEFAULT ''",
+      group_id: "ALTER TABLE links ADD COLUMN group_id INTEGER DEFAULT 0",
     };
     for (const [col, sql] of Object.entries(linksMigrations)) {
       if (!existingLinksCols.includes(col)) {

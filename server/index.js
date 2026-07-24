@@ -7,6 +7,7 @@ const db = require('./db');
 const authRoutes = require('./routes/auth');
 const linkRoutes = require('./routes/links');
 const trackRoutes = require('./routes/track');
+const groupRoutes = require('./routes/groups');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +24,7 @@ app.use(session({
 
 app.use('/api/auth', authRoutes);
 app.use('/api/links', linkRoutes);
+app.use('/api/groups', groupRoutes);
 app.use('/api/track', trackRoutes);
 app.use('/r', trackRoutes);
 
