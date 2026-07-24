@@ -218,11 +218,15 @@ input[type="datetime-local"] {
   white-space: nowrap;
 }
 
-.map-container {
+.map-placeholder {
   height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eee;
   border-radius: 8px;
-  overflow: hidden;
-  margin-top: 16px;
+  color: #777;
+  font-size: 0.9rem;
 }
 
 .error {
