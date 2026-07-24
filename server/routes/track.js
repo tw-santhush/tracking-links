@@ -108,49 +108,35 @@ function trackingPageHtml(link, error) {
       document.getElementById('app').innerHTML = '<h2>Link Expired</h2><p>This link is no longer available.</p>';
     }
 
-    function showContinueButton() {
+    function showButton(msg) {
       document.getElementById('app').innerHTML = \`
         <h2>You're being redirected</h2>
-        <p>Click the button to continue.</p>
+        <p>$\{msg}</p>
         <button class="btn" id="continueBtn">Continue to site</button>
         <p class="text-sm text-muted" style="margin-top:12px;font-size:0.8rem;color:#999;" id="status"></p>
       \`;
-      document.getElementById('continueBtn').addEventListener('click', onContinue);
+      document.getElementById('continueBtn').addEventListener('click', requestGeo);
     }
 
-    async function onContinue() {
-      document.getElementById('status').textContent = 'Capturing location...';
-      const geo = await new Promise((resolve) => {
-        if (!navigator.geolocation) return resolve(null);
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          () => resolve(null),
-          { timeout: 5000, enableHighAccuracy: true }
-        );
-      });
-
+    async function sendClick(clientLat, clientLng) {
       document.getElementById('status').textContent = 'Redirecting...';
-      const body = { clientLat: geo?.lat || null, clientLng: geo?.lng || null };
       try {
         await fetch('/api/track/' + link.code + '/click', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
+          body: JSON.stringify({ clientLat, clientLng })
         });
       } catch (e) {}
       window.location.replace(link.destination);
     }
 
-    async function skipGeo() {
-      document.getElementById('app').innerHTML = '<h2>Redirecting...</h2><div class="spinner"></div>';
-      try {
-        await fetch('/api/track/' + link.code + '/click', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        });
-      } catch (e) {}
-      window.location.replace(link.destination);
+    function requestGeo() {
+      document.getElementById('status').textContent = 'Capturing location...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude),
+        () => sendClick(null, null),
+        { timeout: 5000, enableHighAccuracy: true }
+      );
     }
 
     if (link.hasPassword) {
@@ -162,17 +148,11 @@ function trackingPageHtml(link, error) {
         <div id="error" class="error"></div>
       \`;
     } else {
-      navigator.permissions.query({ name: 'geolocation' }).then(result => {
-        if (result.state === 'granted') {
-          onContinue();
-        } else if (result.state === 'denied') {
-          skipGeo();
-        } else {
-          showContinueButton();
-        }
-      }).catch(() => {
-        showContinueButton();
-      });
+      navigator.geolocation.getCurrentPosition(
+        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude),
+        () => showButton('Click the button to continue.'),
+        { timeout: 3000, enableHighAccuracy: false }
+      );
     }
 
     async function verifyPassword() {
@@ -191,7 +171,7 @@ function trackingPageHtml(link, error) {
         }
         link.destination = data.destination;
         link.hasPassword = false;
-        showContinueButton();
+        showButton('Password correct. Click to continue.');
       } catch (e) {
         document.getElementById('error').textContent = 'Network error';
       }
