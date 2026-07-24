@@ -66,10 +66,42 @@ router.get('/:id', requireAuth, (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
   const offset = (page - 1) * limit;
 
-  const total = db.get('SELECT COUNT(*) as count FROM clicks WHERE link_id = ?', [link.id]);
+  const { date_from, date_to, browser, os, device } = req.query;
+
+  const conditions = ['link_id = ?'];
+  const params = [link.id];
+
+  if (date_from) { conditions.push('timestamp >= ?'); params.push(date_from + ' 00:00:00'); }
+  if (date_to) { conditions.push('timestamp <= ?'); params.push(date_to + ' 23:59:59'); }
+
+  if (browser) {
+    if (browser === 'Chrome') conditions.push("user_agent LIKE '%Chrome%' AND user_agent NOT LIKE '%Edg%'");
+    else if (browser === 'Firefox') conditions.push("user_agent LIKE '%Firefox%'");
+    else if (browser === 'Safari') conditions.push("user_agent LIKE '%Safari%' AND user_agent NOT LIKE '%Chrome%'");
+    else if (browser === 'Edge') conditions.push("user_agent LIKE '%Edg%'");
+    else if (browser === 'IE') conditions.push("(user_agent LIKE '%MSIE%' OR user_agent LIKE '%Trident%')");
+    else if (browser === 'Other') conditions.push("user_agent NOT LIKE '%Chrome%' AND user_agent NOT LIKE '%Firefox%' AND user_agent NOT LIKE '%Safari%' AND user_agent NOT LIKE '%Edg%' AND user_agent NOT LIKE '%MSIE%' AND user_agent NOT LIKE '%Trident%'");
+  }
+
+  if (os) {
+    if (os === 'Windows') conditions.push("user_agent LIKE '%Windows%'");
+    else if (os === 'macOS') conditions.push("(user_agent LIKE '%Mac OS%' OR user_agent LIKE '%Macintosh%')");
+    else if (os === 'Linux') conditions.push("user_agent LIKE '%Linux%' AND user_agent NOT LIKE '%Android%'");
+    else if (os === 'Android') conditions.push("user_agent LIKE '%Android%'");
+    else if (os === 'iOS') conditions.push("(user_agent LIKE '%iPhone%' OR user_agent LIKE '%iPad%')");
+  }
+
+  if (device) {
+    if (device === 'Mobile') conditions.push("(user_agent LIKE '%Mobi%' OR user_agent LIKE '%Android%' OR user_agent LIKE '%iPhone%')");
+    else if (device === 'Desktop') conditions.push("user_agent NOT LIKE '%Mobi%' AND user_agent NOT LIKE '%Android%' AND user_agent NOT LIKE '%iPhone%'");
+    else if (device === 'Tablet') conditions.push("(user_agent LIKE '%iPad%' OR (user_agent LIKE '%Android%' AND user_agent LIKE '%Tablet%'))");
+  }
+
+  const where = conditions.join(' AND ');
+  const total = db.get(`SELECT COUNT(*) as count FROM clicks WHERE ${where}`, params);
   const clicks = db.all(
-    'SELECT * FROM clicks WHERE link_id = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?',
-    [link.id, limit, offset]
+    `SELECT * FROM clicks WHERE ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
   );
 
   res.json({ link, clicks, total: total.count, page, limit, hasMore: offset + clicks.length < total.count });

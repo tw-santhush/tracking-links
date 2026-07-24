@@ -76,9 +76,20 @@ export default function LinkDetail() {
   const [page, setPage] = useState(1);
   const [allClicks, setAllClicks] = useState([]);
   const [expandedFp, setExpandedFp] = useState(null);
+  const [filters, setFilters] = useState({ date_from: '', date_to: '', browser: '', os: '', device: '' });
+
+  const filterKey = JSON.stringify(filters);
 
   useEffect(() => {
-    fetch(`${API}/links/${id}?page=${page}&limit=20`, { credentials: 'include' })
+    setPage(1);
+    setAllClicks([]);
+  }, [filterKey]);
+
+  useEffect(() => {
+    const params = new URLSearchParams({ page, limit: '20' });
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+
+    fetch(`${API}/links/${id}?${params}`, { credentials: 'include' })
       .then(r => {
         if (!r.ok) throw new Error('Not found');
         return r.json();
@@ -92,7 +103,15 @@ export default function LinkDetail() {
         }
       })
       .catch(() => setError('Link not found'));
-  }, [id, page]);
+  }, [id, page, filterKey]);
+
+  const updateFilter = (key, val) => {
+    setFilters(prev => ({ ...prev, [key]: val }));
+  };
+
+  const clearFilters = () => {
+    setFilters({ date_from: '', date_to: '', browser: '', os: '', device: '' });
+  };
 
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p>Loading...</p>;
@@ -133,6 +152,8 @@ export default function LinkDetail() {
 
   const exportUrl = (fmt) => `${API}/links/${id}/export/${fmt}`;
 
+  const hasActiveFilters = Object.values(filters).some(v => v);
+
   return (
     <div>
       <Link to="/" className="btn btn-sm mb-12">&larr; Back</Link>
@@ -151,6 +172,54 @@ export default function LinkDetail() {
             <a href={exportUrl('json')} className="btn btn-sm btn-secondary" download>JSON</a>
             <a href={exportUrl('csv')} className="btn btn-sm btn-secondary" download>CSV</a>
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="flex gap-8 items-center" style={{ flexWrap: 'wrap' }}>
+          <label className="filter-label">
+            From
+            <input type="date" className="filter-input" value={filters.date_from} onChange={e => updateFilter('date_from', e.target.value)} />
+          </label>
+          <label className="filter-label">
+            To
+            <input type="date" className="filter-input" value={filters.date_to} onChange={e => updateFilter('date_to', e.target.value)} />
+          </label>
+          <label className="filter-label">
+            Browser
+            <select className="filter-input" value={filters.browser} onChange={e => updateFilter('browser', e.target.value)}>
+              <option value="">All</option>
+              <option value="Chrome">Chrome</option>
+              <option value="Firefox">Firefox</option>
+              <option value="Safari">Safari</option>
+              <option value="Edge">Edge</option>
+              <option value="IE">Internet Explorer</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label className="filter-label">
+            OS
+            <select className="filter-input" value={filters.os} onChange={e => updateFilter('os', e.target.value)}>
+              <option value="">All</option>
+              <option value="Windows">Windows</option>
+              <option value="macOS">macOS</option>
+              <option value="Linux">Linux</option>
+              <option value="Android">Android</option>
+              <option value="iOS">iOS</option>
+            </select>
+          </label>
+          <label className="filter-label">
+            Device
+            <select className="filter-input" value={filters.device} onChange={e => updateFilter('device', e.target.value)}>
+              <option value="">All</option>
+              <option value="Desktop">Desktop</option>
+              <option value="Mobile">Mobile</option>
+              <option value="Tablet">Tablet</option>
+            </select>
+          </label>
+          {hasActiveFilters && (
+            <button className="btn btn-sm btn-secondary" onClick={clearFilters}>Clear</button>
+          )}
         </div>
       </div>
 
