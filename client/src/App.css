@@ -325,6 +325,13 @@ input[type="datetime-local"] {
   font-size: 0.9rem;
 }
 
+.map-container {
+  height: 400px;
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 0;
+}
+
 .error {
   color: var(--error-text);
   font-size: 0.85rem;
