@@ -307,7 +307,7 @@ function getFingerprint() {
 }
 
 router.get('/:code', async (req, res) => {
-  const link = db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
+  const link = await db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
   if (!link) {
     return res.status(404).send('Link not found');
   }
@@ -320,7 +320,7 @@ router.get('/:code', async (req, res) => {
 });
 
 router.post('/:code/click', async (req, res) => {
-  const link = db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
+  const link = await db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
   if (!link) return res.status(404).json({ error: 'Link not found' });
 
   const { clientLat, clientLng, fingerprint } = req.body || {};
@@ -339,7 +339,7 @@ router.post('/:code/click', async (req, res) => {
     address = await reverseGeocode(geo.lat, geo.lng);
   }
 
-  db.run(
+  await db.run(
     'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, user_agent, fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, req.headers['user-agent'] || null, fingerprint || null]
   );
@@ -347,8 +347,8 @@ router.post('/:code/click', async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post('/:code/info', (req, res) => {
-  const link = db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
+router.post('/:code/info', async (req, res) => {
+  const link = await db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
   if (!link) return res.status(404).json({ error: 'Link not found' });
 
   const expired = link.expires_at && new Date(link.expires_at) < new Date();
@@ -361,8 +361,8 @@ router.post('/:code/info', (req, res) => {
   });
 });
 
-router.post('/:code/verify', (req, res) => {
-  const link = db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
+router.post('/:code/verify', async (req, res) => {
+  const link = await db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
   if (!link) return res.status(404).json({ error: 'Link not found' });
 
   const { password } = req.body || {};
