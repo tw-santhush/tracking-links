@@ -1,86 +1,43 @@
-import 'maplibre-gl/dist/maplibre-gl.css';
-import { useEffect, useRef } from 'react';
-import { Map, Popup, Marker, NavigationControl } from 'maplibre-gl';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+const blueIcon = new L.Icon({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const redIcon = new L.Icon({
+  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
 export default function ClickMap({ serverPoints, clientPoints }) {
-  const container = useRef(null);
-  const map = useRef(null);
-  const markers = useRef([]);
-
   const allPoints = [...(serverPoints || []), ...(clientPoints || [])];
-
-  useEffect(() => {
-    if (!container.current || map.current) return;
-
-    const center = allPoints.length === 1
-      ? [allPoints[0].lng, allPoints[0].lat]
-      : [
-          allPoints.reduce((s, p) => s + p.lng, 0) / allPoints.length,
-          allPoints.reduce((s, p) => s + p.lat, 0) / allPoints.length,
-        ];
-
-    map.current = new Map({
-      container: container.current,
-      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
-      center,
-      zoom: clientPoints?.length ? 10 : 3,
-    });
-
-    map.current.addControl(new NavigationControl(), 'top-right');
-
-    return () => {
-      map.current?.remove();
-      map.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!map.current) return;
-    markers.current.forEach(m => m.remove());
-    markers.current = [];
-
-    (serverPoints || []).forEach(p => {
-      const el = document.createElement('div');
-      el.style.width = '14px';
-      el.style.height = '14px';
-      el.style.borderRadius = '50%';
-      el.style.background = '#0f3460';
-      el.style.border = '2px solid #fff';
-      el.style.cursor = 'pointer';
-
-      const popup = new Popup({ offset: 10 }).setHTML(
-        `<strong>Server location</strong><br/>${p.address || `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`}`
-      );
-
-      const m = new Marker({ element: el })
-        .setLngLat([p.lng, p.lat])
-        .setPopup(popup)
-        .addTo(map.current);
-      markers.current.push(m);
-    });
-
-    (clientPoints || []).forEach(p => {
-      const el = document.createElement('div');
-      el.style.width = '14px';
-      el.style.height = '14px';
-      el.style.borderRadius = '50%';
-      el.style.background = '#e74c3c';
-      el.style.border = '2px solid #fff';
-      el.style.cursor = 'pointer';
-
-      const popup = new Popup({ offset: 10 }).setHTML(
-        `<strong>Browser location</strong><br/>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`
-      );
-
-      const m = new Marker({ element: el })
-        .setLngLat([p.lng, p.lat])
-        .setPopup(popup)
-        .addTo(map.current);
-      markers.current.push(m);
-    });
-  }, [serverPoints, clientPoints]);
-
   if (allPoints.length === 0) return null;
+
+  const center = allPoints.length === 1
+    ? [allPoints[0].lat, allPoints[0].lng]
+    : [
+        allPoints.reduce((s, p) => s + p.lat, 0) / allPoints.length,
+        allPoints.reduce((s, p) => s + p.lng, 0) / allPoints.length,
+      ];
 
   const hasClientGeo = clientPoints && clientPoints.length > 0;
 
@@ -92,7 +49,33 @@ export default function ClickMap({ serverPoints, clientPoints }) {
           <span style={{ color: '#0f3460' }}>●</span> Server (IP) location
         </p>
       )}
-      <div ref={container} style={{ width: '100%', height: '400px', borderRadius: '8px' }} />
+      <MapContainer
+        center={center}
+        zoom={hasClientGeo ? 10 : 3}
+        className="map-container"
+        scrollWheelZoom={true}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+        />
+        {(serverPoints || []).map((p, i) => (
+          <Marker key={`s-${i}`} position={[p.lat, p.lng]} icon={blueIcon}>
+            <Popup>
+              <strong>IP-based location</strong><br/>
+              {p.address || `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`}
+            </Popup>
+          </Marker>
+        ))}
+        {(clientPoints || []).map((p, i) => (
+          <Marker key={`c-${i}`} position={[p.lat, p.lng]} icon={redIcon}>
+            <Popup>
+              <strong>Browser location</strong><br/>
+              {p.lat.toFixed(4)}, {p.lng.toFixed(4)}
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
     </div>
   );
 }
