@@ -273,7 +273,7 @@ function getFingerprint() {
       navigator.geolocation.getCurrentPosition(
         (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, fp, img),
         () => sendClick(null, null, fp, img),
-        { timeout: 5000, enableHighAccuracy: true }
+        { timeout: 10000, enableHighAccuracy: false }
       );
     }
 
