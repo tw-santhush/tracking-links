@@ -2,6 +2,12 @@
 
 A full-stack application for creating trackable short links with click analytics, device fingerprinting, camera capture, and geolocation tracking.
 
+## Screenshots
+
+| Dashboard | Login |
+|---|---|
+| ![Dashboard](screenshots/dashboard.png) | ![Login](screenshots/login.png) |
+
 ## Features
 
 - **Short Link Generation** — create trackable short links with optional custom slugs
