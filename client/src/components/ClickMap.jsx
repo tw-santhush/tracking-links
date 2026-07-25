@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -68,12 +68,22 @@ export default function ClickMap({ serverPoints, clientPoints }) {
           </Marker>
         ))}
         {(clientPoints || []).map((p, i) => (
-          <Marker key={`c-${i}`} position={[p.lat, p.lng]} icon={redIcon}>
-            <Popup>
-              <strong>Browser location</strong><br/>
-              {p.lat.toFixed(4)}, {p.lng.toFixed(4)}
-            </Popup>
-          </Marker>
+          <div key={`c-${i}`}>
+            <Marker position={[p.lat, p.lng]} icon={redIcon}>
+              <Popup>
+                <strong>Browser location</strong><br/>
+                {p.lat.toFixed(4)}, {p.lng.toFixed(4)}
+                {p.accuracy ? <><br/>Accuracy: &plusmn;{p.accuracy < 50 ? '<50' : Math.round(p.accuracy)}m</> : ''}
+              </Popup>
+            </Marker>
+            {p.accuracy && (
+              <Circle
+                center={[p.lat, p.lng]}
+                radius={p.accuracy}
+                pathOptions={{ color: '#e74c3c', fillOpacity: 0.08, weight: 1 }}
+              />
+            )}
+          </div>
         ))}
       </MapContainer>
     </div>

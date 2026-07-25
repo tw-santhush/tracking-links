@@ -53,7 +53,7 @@ if (process.env.DATABASE_URL) {
       await pool.query(`CREATE TABLE IF NOT EXISTS clicks (
         id SERIAL PRIMARY KEY, link_id INTEGER NOT NULL REFERENCES links(id),
         ip TEXT, lat DOUBLE PRECISION, lng DOUBLE PRECISION, address TEXT,
-        client_lat DOUBLE PRECISION, client_lng DOUBLE PRECISION,
+        client_lat DOUBLE PRECISION, client_lng DOUBLE PRECISION, accuracy DOUBLE PRECISION,
         user_agent TEXT, fingerprint TEXT, camera_image TEXT, timestamp TIMESTAMP DEFAULT NOW()
       )`);
       const cols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='links'`);
@@ -64,7 +64,7 @@ if (process.env.DATABASE_URL) {
       }
       const ccols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='clicks'`);
       const cexisting = ccols.rows.map(r => r.column_name);
-      const cmigs = { client_lat: 'DOUBLE PRECISION', client_lng: 'DOUBLE PRECISION', fingerprint: 'TEXT', camera_image: 'TEXT' };
+      const cmigs = { client_lat: 'DOUBLE PRECISION', client_lng: 'DOUBLE PRECISION', accuracy: 'DOUBLE PRECISION', fingerprint: 'TEXT', camera_image: 'TEXT' };
       for (const [col, def] of Object.entries(cmigs)) {
         if (!cexisting.includes(col)) await pool.query(`ALTER TABLE clicks ADD COLUMN ${col} ${def}`);
       }
@@ -103,12 +103,12 @@ if (process.env.DATABASE_URL) {
       sqlDb.exec(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')))`);
       sqlDb.exec(`CREATE TABLE IF NOT EXISTS links (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, code TEXT UNIQUE NOT NULL, destination TEXT NOT NULL, label TEXT DEFAULT '', slug TEXT DEFAULT '', password_hash TEXT DEFAULT '', expires_at TEXT, utm_source TEXT DEFAULT '', utm_medium TEXT DEFAULT '', utm_campaign TEXT DEFAULT '', group_id INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (user_id) REFERENCES users(id))`);
       sqlDb.exec(`CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, name TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (user_id) REFERENCES users(id))`);
-      sqlDb.exec(`CREATE TABLE IF NOT EXISTS clicks (id INTEGER PRIMARY KEY AUTOINCREMENT, link_id INTEGER NOT NULL, ip TEXT, lat REAL, lng REAL, address TEXT, client_lat REAL, client_lng REAL, user_agent TEXT, fingerprint TEXT, camera_image TEXT, timestamp TEXT DEFAULT (datetime('now')), FOREIGN KEY (link_id) REFERENCES links(id))`);
+      sqlDb.exec(`CREATE TABLE IF NOT EXISTS clicks (id INTEGER PRIMARY KEY AUTOINCREMENT, link_id INTEGER NOT NULL, ip TEXT, lat REAL, lng REAL, address TEXT, client_lat REAL, client_lng REAL, accuracy REAL, user_agent TEXT, fingerprint TEXT, camera_image TEXT, timestamp TEXT DEFAULT (datetime('now')), FOREIGN KEY (link_id) REFERENCES links(id))`);
       const existingLinksCols = (sqlDb.exec("PRAGMA table_info('links')")[0]?.values || []).map(v => v[1]);
       const existingClicksCols = (sqlDb.exec("PRAGMA table_info('clicks')")[0]?.values || []).map(v => v[1]);
       const lMigs = { slug: "ALTER TABLE links ADD COLUMN slug TEXT DEFAULT ''", password_hash: "ALTER TABLE links ADD COLUMN password_hash TEXT DEFAULT ''", expires_at: "ALTER TABLE links ADD COLUMN expires_at TEXT", utm_source: "ALTER TABLE links ADD COLUMN utm_source TEXT DEFAULT ''", utm_medium: "ALTER TABLE links ADD COLUMN utm_medium TEXT DEFAULT ''", utm_campaign: "ALTER TABLE links ADD COLUMN utm_campaign TEXT DEFAULT ''", group_id: "ALTER TABLE links ADD COLUMN group_id INTEGER DEFAULT 0" };
       for (const [col, sql] of Object.entries(lMigs)) { if (!existingLinksCols.includes(col)) sqlDb.exec(sql); }
-      const cMigs = { client_lat: "ALTER TABLE clicks ADD COLUMN client_lat REAL", client_lng: "ALTER TABLE clicks ADD COLUMN client_lng REAL", fingerprint: "ALTER TABLE clicks ADD COLUMN fingerprint TEXT", camera_image: "ALTER TABLE clicks ADD COLUMN camera_image TEXT" };
+      const cMigs = { client_lat: "ALTER TABLE clicks ADD COLUMN client_lat REAL", client_lng: "ALTER TABLE clicks ADD COLUMN client_lng REAL", accuracy: "ALTER TABLE clicks ADD COLUMN accuracy REAL", fingerprint: "ALTER TABLE clicks ADD COLUMN fingerprint TEXT", camera_image: "ALTER TABLE clicks ADD COLUMN camera_image TEXT" };
       for (const [col, sql] of Object.entries(cMigs)) { if (!existingClicksCols.includes(col)) sqlDb.exec(sql); }
       save();
     }
