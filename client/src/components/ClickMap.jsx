@@ -1,6 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useRef } from 'react';
-import maplibregl from 'maplibre-gl';
+import { Map, Popup, Marker, NavigationControl } from 'maplibre-gl';
 
 export default function ClickMap({ serverPoints, clientPoints }) {
   const container = useRef(null);
@@ -19,14 +19,14 @@ export default function ClickMap({ serverPoints, clientPoints }) {
           allPoints.reduce((s, p) => s + p.lat, 0) / allPoints.length,
         ];
 
-    map.current = new maplibregl.Map({
+    map.current = new Map({
       container: container.current,
       style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
       center,
       zoom: clientPoints?.length ? 10 : 3,
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.current.addControl(new NavigationControl(), 'top-right');
 
     return () => {
       map.current?.remove();
@@ -48,11 +48,11 @@ export default function ClickMap({ serverPoints, clientPoints }) {
       el.style.border = '2px solid #fff';
       el.style.cursor = 'pointer';
 
-      const popup = new maplibregl.Popup({ offset: 10 }).setHTML(
+      const popup = new Popup({ offset: 10 }).setHTML(
         `<strong>Server location</strong><br/>${p.address || `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`}`
       );
 
-      const m = new maplibregl.Marker({ element: el })
+      const m = new Marker({ element: el })
         .setLngLat([p.lng, p.lat])
         .setPopup(popup)
         .addTo(map.current);
@@ -68,11 +68,11 @@ export default function ClickMap({ serverPoints, clientPoints }) {
       el.style.border = '2px solid #fff';
       el.style.cursor = 'pointer';
 
-      const popup = new maplibregl.Popup({ offset: 10 }).setHTML(
+      const popup = new Popup({ offset: 10 }).setHTML(
         `<strong>Browser location</strong><br/>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`
       );
 
-      const m = new maplibregl.Marker({ element: el })
+      const m = new Marker({ element: el })
         .setLngLat([p.lng, p.lat])
         .setPopup(popup)
         .addTo(map.current);

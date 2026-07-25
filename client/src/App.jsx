@@ -10,6 +10,12 @@ const API = '/api';
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }, [dark]);
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { credentials: 'include' })
@@ -28,6 +34,9 @@ function App() {
       <nav className="navbar">
         <Link to="/" className="brand">Tracking Links</Link>
         <div className="nav-right">
+          <button className="btn btn-sm theme-toggle" onClick={() => setDark(!dark)}>
+            {dark ? 'Light' : 'Dark'}
+          </button>
           {user ? (
             <>
               <span className="user-email">{user.email}</span>
