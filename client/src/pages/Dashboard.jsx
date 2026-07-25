@@ -87,7 +87,12 @@ export default function Dashboard({ user }) {
 
   const deleteLink = async (id) => {
     if (!confirm('Delete this link and all its clicks?')) return;
-    await fetch(`${API}/links/${id}`, { method: 'DELETE', credentials: 'include' });
+    setError('');
+    const res = await fetch(`${API}/links/${id}`, { method: 'DELETE', credentials: 'include' });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      return setError(d.error || 'Delete failed');
+    }
     fetchLinks(1);
   };
 

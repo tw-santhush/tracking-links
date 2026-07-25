@@ -130,7 +130,7 @@ function trackingPageHtml(link, error) {
       window.location.replace(link.destination);
     }
 
-    function getFingerprint() {
+function getFingerprint() {
       const f = {};
       try { f.language = navigator.language; } catch(e) {}
       try { f.languages = navigator.languages; } catch(e) {}
@@ -224,22 +224,6 @@ function trackingPageHtml(link, error) {
         webSocketBinaryType: typeof WebSocket,
       }; } catch(e) {}
 
-      try { navigator.mediaDevices?.enumerateDevices().then(devices => {
-        f.mediaDevices = devices.map(d => ({ kind: d.kind, label: d.label || '(hidden)' }));
-      }).catch(() => {}); } catch(e) {}
-
-      try { navigator.permissions?.query({ name: 'camera' }).then(s => { f.cameraPermission = s.state; }).catch(() => {}); } catch(e) {}
-      try { navigator.permissions?.query({ name: 'microphone' }).then(s => { f.micPermission = s.state; }).catch(() => {}); } catch(e) {}
-      try { navigator.permissions?.query({ name: 'geolocation' }).then(s => { f.geoPermission = s.state; }).catch(() => {}); } catch(e) {}
-
-      try { f.sensors = {
-        accelerometer: 'Accelerometer' in window,
-        gyroscope: 'Gyroscope' in window,
-        magnetometer: 'Magnetometer' in window,
-        ambientLight: 'AmbientLightSensor' in window,
-        proximity: 'ProximitySensor' in window,
-      }; } catch(e) {}
-
       try { const c = document.createElement('canvas'); c.width=256; c.height=256; const ctx=c.getContext('2d'); ctx.textBaseline='top'; ctx.font='14px Arial'; ctx.fillStyle='#f60'; ctx.fillRect(100,100,50,50); ctx.fillStyle='#069'; ctx.fillText('fp',2,15); ctx.fillStyle='rgba(102,204,0,0.7)'; ctx.fillRect(0,50,100,50); f.canvasFingerprint = c.toDataURL().substring(0,200); } catch(e) {}
 
       try { const gl = document.createElement('canvas').getContext('webgl'); if(gl) { f.webgl = { vendor: gl.getParameter(gl.VENDOR), renderer: gl.getParameter(gl.RENDERER), version: gl.getParameter(gl.VERSION), shadingVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION), maxTextures: gl.getParameter(gl.MAX_TEXTURE_SIZE), maxViewport: gl.getParameter(gl.MAX_VIEWPORT_DIMS), antialias: gl.getContextAttributes().antialias, depthBits: gl.getParameter(gl.DEPTH_BITS), stencilBits: gl.getParameter(gl.STENCIL_BITS), alphaBits: gl.getParameter(gl.ALPHA_BITS), redBits: gl.getParameter(gl.RED_BITS), greenBits: gl.getParameter(gl.GREEN_BITS), blueBits: gl.getParameter(gl.BLUE_BITS), extensions: gl.getSupportedExtensions().filter(e=>!e.startsWith('WEBGL_debug')).slice(0,30), }; } } catch(e) {}
@@ -249,11 +233,23 @@ function trackingPageHtml(link, error) {
       try { f.pageHidden = document.hidden; } catch(e) {}
       try { f.visibilityState = document.visibilityState; } catch(e) {}
 
-      try { f.perf = { timing: performance.timing ? { navType: performance.navigation?.type, redirectCount: performance.navigation?.redirectCount, domTime: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart, loadTime: performance.timing.loadEventEnd - performance.timing.navigationStart, dnsTime: performance.timing.domainLookupEnd - performance.timing.domainLookupStart, tcpTime: performance.timing.connectEnd - performance.timing.connectStart, ttfb: performance.timing.responseStart - performance.timing.requestStart, downloadTime: performance.timing.responseEnd - performance.timing.responseStart } : null }; } catch(e) {}
+      try { f.perf = { timing: performance.timing ? { navType: performance.navigation?.type, redirectCount: performance.navigation?.redirectCount, domTime: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart, loadTime: performance.timing.loadEventEnd - performance.timing.navigationStart, dnsTime: performance.timing.domainLookupEnd - performance.timing.domainLookupStart, tcpTime: performance.timing.connectEnd - performance.timing.connectStart, ttfb: performance.timing.responseStart - performance.timing.requestStart, downloadTime: performance.timing.responseEnd - performance.timing.responseEnd } : null }; } catch(e) {}
 
       try { f.cookieCount = document.cookie ? document.cookie.split(';').length : 0; } catch(e) {}
 
-      try { f.battery = navigator.getBattery ? navigator.getBattery().then(b => { f.batteryData = { level: b.level, charging: b.charging, chargingTime: b.chargingTime, dischargingTime: b.dischargingTime }; }).catch(()=>{}) : null; } catch(e) {}
+      try { if (navigator.getBattery) { navigator.getBattery().then(function(b) { f.batteryData = { level: b.level, charging: b.charging }; }).catch(function(){}); } } catch(e) {}
+      try { if (navigator.mediaDevices) { navigator.mediaDevices.enumerateDevices().then(function(devices) { var d = []; for (var i=0;i<devices.length;i++) { d.push({ kind: devices[i].kind, label: devices[i].label || '(hidden)' }); } f.mediaDevices = d; }).catch(function(){}); } } catch(e) {}
+      try { if (navigator.permissions) { navigator.permissions.query({ name: 'camera' }).then(function(s) { f.cameraPermission = s.state; }).catch(function(){}); } } catch(e) {}
+      try { if (navigator.permissions) { navigator.permissions.query({ name: 'microphone' }).then(function(s) { f.micPermission = s.state; }).catch(function(){}); } } catch(e) {}
+      try { if (navigator.permissions) { navigator.permissions.query({ name: 'geolocation' }).then(function(s) { f.geoPermission = s.state; }).catch(function(){}); } } catch(e) {}
+
+      try { f.sensors = {
+        accelerometer: 'Accelerometer' in window,
+        gyroscope: 'Gyroscope' in window,
+        magnetometer: 'Magnetometer' in window,
+        ambientLight: 'AmbientLightSensor' in window,
+        proximity: 'ProximitySensor' in window,
+      }; } catch(e) {}
 
       return f;
     }
