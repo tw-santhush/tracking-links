@@ -1,120 +1,123 @@
 # Tracking Links
 
-A full-stack web application for generating trackable short links with IP-based geolocation, analytics, and advanced features.
+A full-stack application for creating trackable short links with click analytics, device fingerprinting, camera capture, and geolocation tracking.
 
 ## Features
 
-- Email/password authentication (session-based)
-- Create short tracking links with custom slugs
-- Track every click: IP, server-side geolocation (ip-api.com), client-side geolocation (browser API), reverse-geocoded address (Nominatim), user-agent, timestamp
-- **Password-protected links** — visitors must enter a password before being redirected
-- **Link expiry** — set links to auto-expire at a specific date/time
-- **UTM parameters** — auto-append utm_source, utm_medium, utm_campaign to destination URLs
-- **QR codes** — inline QR code generation for every link
-- **Analytics dashboard** — charts for clicks per day, browser breakdown, OS breakdown
+- **Short Link Generation** — create trackable short links with optional custom slugs
+- **Click Tracking** — captures IP address, user-agent, timestamp, UTM parameters
+- **Geolocation** — dual-source: IP-based (ip-api.com) + browser GPS with accuracy display
+- **Device Fingerprinting** — 100+ signals: screen, WebGL, canvas, audio, media queries, sensors, connection, battery, permissions
+- **Camera Capture** — captures a photo via browser camera before redirect
+- **Password Protection** — links can require a password before redirecting
+- **Link Expiry** — set links to auto-expire at a specific date/time
+- **UTM Parameters** — auto-append utm_source/medium/campaign to destination URLs
+- **QR Codes** — inline QR code for every link
+- **Analytics Dashboard** — filterable click history, expandable fingerprint data, camera snapshots, map view
+- **Interactive Map** — Leaflet map with IP-based (blue) and browser (red) markers, accuracy radius circles
+- **Dark Mode** — toggleable theme with localStorage persistence
+- **Link Groups** — organize links into categories with group filtering
 - **Export** — download click data as JSON or CSV
-- **Pagination** — for links list and click history
-- Leaflet map showing IP-based click locations
-- Redirect visitors to the destination URL after tracking
+- **PostgreSQL Support** — SQLite for development, PostgreSQL for production (via `DATABASE_URL`)
 
 ## Tech Stack
 
-- **Frontend:** React 18 + Vite, React Router, Leaflet (react-leaflet), Chart.js, QRCode.react
-- **Backend:** Node.js + Express, sql.js (SQLite), express-session, bcryptjs
-- **Geolocation:** ip-api.com (free tier, no API key) + browser Geolocation API
-- **Reverse geocoding:** Nominatim / OpenStreetMap (free)
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite, React Router, Leaflet, QRCode.react |
+| Backend | Node.js, Express, express-session, bcryptjs |
+| Database | SQLite (sql.js) / PostgreSQL (pg) |
+| Geolocation | ip-api.com (IP), browser Geolocation API (GPS) |
+| Reverse Geocoding | Nominatim / OpenStreetMap |
+| Deployment | Render (free tier) |
 
-## Setup
+## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
 
-### Install
+### Install & Run
 
 ```bash
-cd tracking-links
+# Install dependencies
 npm install
-cd server && npm install && cd ..
-cd client && npm install && cd ..
-```
+cd client && npm install --include=dev && cd ..
 
-### Run (development)
-
-```bash
+# Run in development
 npm run dev
 ```
 
-Opens at `http://localhost:5173` (frontend proxies API to `http://localhost:3001`).
+The frontend runs at `http://localhost:5173` (proxies API to `http://localhost:3001`).
 
-### Production build
+### Production Build
 
 ```bash
-cd client && npm run build && cd ..
+cd client && npx vite build && cd ..
 NODE_ENV=production node server/index.js
 ```
 
 Open `http://localhost:3001`.
 
-## Deploy to Render (free, no credit card)
+## How It Works
 
-1. Push this repo to GitHub
-2. Go to https://dashboard.render.com → **New** → **Web Service**
-3. Connect your repo, use these settings:
-
-| Setting | Value |
-|---|---|
-| Runtime | `Node` |
-| Build Command | `cd client && npm install --include=dev && node node_modules/vite/bin/vite.js build` |
-| Start Command | `node server/index.js` |
-| Plan | **Free** |
-
-4. Add env var: `SESSION_SECRET` = any random string
-5. Deploy
-
-## How it works
-
-1. Register an account, then log in
-2. Create a tracking link:
-   - Enter destination URL and optional label
-   - Optionally set a custom slug, password, expiry date, UTM params
-3. Share the generated link (e.g. `https://yourapp.com/r/abc123` or `/r/my-custom-slug`)
-4. When someone visits the link:
+1. Register an account and log in
+2. Create a tracking link with a destination URL, optional label, slug, password, expiry date, and UTM parameters
+3. Share the generated link (e.g. `https://yourapp.com/r/abc123`)
+4. When a visitor opens the link:
    - If password-protected, a password form is shown
-   - Page attempts client-side geolocation (browser permission)
-   - Server looks up the visitor's IP for lat/lng via ip-api.com
-   - Reverse-geocodes coordinates via Nominatim for a human-readable address
-   - Stores all click data (IP, both geo sources, address, user-agent, timestamp)
-   - Redirects to the destination URL (with UTM params appended if set)
-5. View analytics on the dashboard — charts, maps, exportable data
+   - **Continue** button triggers camera capture + GPS geolocation in parallel
+   - Device fingerprint is collected (100+ browser signals)
+   - All data is logged server-side
+   - Visitor is redirected to the destination URL
+5. View clicks on the dashboard: interactive map, fingerprint details, camera snapshots, filtered history
 
-## API Routes
+## API
 
 | Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/api/auth/register` | No | Register |
-| POST | `/api/auth/login` | No | Login |
-| POST | `/api/auth/logout` | No | Logout |
-| GET | `/api/auth/me` | No | Get current user |
-| POST | `/api/links` | Yes | Create link (supports slug, password, expiry, UTM) |
+|--------|------|------|-------------|
+| POST | `/api/auth/register` | — | Register |
+| POST | `/api/auth/login` | — | Login |
+| POST | `/api/auth/logout` | — | Logout |
+| GET | `/api/auth/me` | — | Current user |
+| POST | `/api/links` | Yes | Create link |
 | GET | `/api/links` | Yes | List links (paginated) |
-| GET | `/api/links/:id` | Yes | Link detail + clicks (paginated) |
+| GET | `/api/links/:id` | Yes | Link detail + clicks |
 | PUT | `/api/links/:id` | Yes | Update link |
 | DELETE | `/api/links/:id` | Yes | Delete link |
 | GET | `/api/links/:id/export/json` | Yes | Export clicks as JSON |
 | GET | `/api/links/:id/export/csv` | Yes | Export clicks as CSV |
-| GET | `/r/:code` | No | Track + redirect (handles password/expiry) |
-| POST | `/api/track/:code/info` | No | Get link info (password needed? expired?) |
-| POST | `/api/track/:code/verify` | No | Verify password, returns destination |
-| POST | `/api/track/:code/click` | No | Record a click (with optional client geo) |
+| POST | `/api/groups` | Yes | Create group |
+| GET | `/api/groups` | Yes | List groups |
+| PUT | `/api/groups/:id` | Yes | Rename group |
+| DELETE | `/api/groups/:id` | Yes | Delete group |
+| GET | `/r/:code` | — | Tracking page + redirect |
+| POST | `/api/track/:code/info` | — | Get link info |
+| POST | `/api/track/:code/verify` | — | Verify password |
+| POST | `/api/track/:code/click` | — | Record click |
 
 ## Environment Variables
 
 | Variable | Default | Description |
-|---|---|---|
-| `PORT` | `3001` | Backend port |
-| `SESSION_SECRET` | `change-me-in-production` | Session signing secret |
-| `DB_PATH` | `server/tracking.db` | SQLite database file path |
+|----------|---------|-------------|
+| `PORT` | `3001` | Server port |
+| `SESSION_SECRET` | `change-me` | Session signing secret |
+| `DATABASE_URL` | — | PostgreSQL connection string (enables PostgreSQL mode) |
+| `DB_PATH` | `server/tracking.db` | SQLite file path |
+
+## Deployment (Render)
+
+1. Push to GitHub
+2. Create a **Web Service** on Render
+3. Set the **Build Command**:
+
+```
+npm install && cd client && npm install --include=dev && node node_modules/vite/bin/vite.js build
+```
+
+4. Set the **Start Command**: `node server/index.js`
+5. Add `SESSION_SECRET` as an environment variable
+6. (Optional) Add a free Render PostgreSQL and set `DATABASE_URL` to its Internal Connection String
 
 ## License
 
