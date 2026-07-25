@@ -23,8 +23,6 @@
   --badge-info-text: #1565c0;
   --qr-bg: #fff;
   --qr-border: #ddd;
-  --chart-bg: #fafafa;
-  --chart-text: #555;
   --table-border: #eee;
   --table-header: #555;
   --map-placeholder-bg: #eee;
@@ -67,8 +65,6 @@
   --badge-info-text: #5dade2;
   --qr-bg: #2a2a2a;
   --qr-border: #444;
-  --chart-bg: #2a2a2a;
-  --chart-text: #aaa;
   --table-border: #333;
   --table-header: #aaa;
   --map-placeholder-bg: #2a2a2a;
@@ -255,31 +251,6 @@ input[type="datetime-local"] {
   padding: 12px;
   box-shadow: 0 4px 12px var(--shadow-strong);
   z-index: 10;
-}
-
-.charts-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px;
-}
-
-@media (max-width: 768px) {
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.chart-box {
-  padding: 12px;
-  background: var(--chart-bg);
-  border-radius: 6px;
-}
-
-.chart-title {
-  font-size: 0.85rem;
-  color: var(--chart-text);
-  margin-bottom: 12px;
-  text-align: center;
 }
 
 .table-scroll {
