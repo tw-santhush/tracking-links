@@ -6,7 +6,7 @@ const requireAuth = require('../middleware/auth');
 
 const router = express.Router();
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { destination, label, slug, password, expires_at, utm_source, utm_medium, utm_campaign, group_id } = req.body;
     if (!destination) {
@@ -18,19 +18,19 @@ router.post('/', requireAuth, (req, res) => {
       return res.status(400).json({ error: 'Invalid slug' });
     }
 
-    const existing = db.get('SELECT id FROM links WHERE code = ?', [code]);
+    const existing = await db.get('SELECT id FROM links WHERE code = ?', [code]);
     if (existing) {
       return res.status(409).json({ error: 'Slug already taken' });
     }
 
     const passwordHash = password ? bcrypt.hashSync(password, 10) : '';
 
-    const id = db.runAndGetId(
+    const id = await db.runAndGetId(
       `INSERT INTO links (user_id, code, destination, label, slug, password_hash, expires_at, utm_source, utm_medium, utm_campaign, group_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.session.userId, code, destination, label || '', slug || '', passwordHash, expires_at || null, utm_source || '', utm_medium || '', utm_campaign || '', group_id || 0]
     );
-    const link = db.get('SELECT * FROM links WHERE id = ?', [id]);
+    const link = await db.get('SELECT * FROM links WHERE id = ?', [id]);
     res.json(link);
   } catch (err) {
     console.error('POST /api/links error:', err);
@@ -38,7 +38,7 @@ router.post('/', requireAuth, (req, res) => {
   }
 });
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
   const offset = (page - 1) * limit;
@@ -52,8 +52,8 @@ router.get('/', requireAuth, (req, res) => {
     params.push(parseInt(group_id));
   }
 
-  const total = db.get(`SELECT COUNT(*) as count FROM links ${conditions}`, params);
-  const links = db.all(
+  const total = await db.get(`SELECT COUNT(*) as count FROM links ${conditions}`, params);
+  const links = await db.all(
     `SELECT l.*, (SELECT COUNT(*) FROM clicks WHERE link_id = l.id) AS click_count
      FROM links l ${conditions} ORDER BY l.created_at DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
@@ -63,8 +63,8 @@ router.get('/', requireAuth, (req, res) => {
   res.json({ links, total: total.count, page, limit, hasMore });
 });
 
-router.get('/:id', requireAuth, (req, res) => {
-  const link = db.get(
+router.get('/:id', requireAuth, async (req, res) => {
+  const link = await db.get(
     `SELECT l.*, (SELECT COUNT(*) FROM clicks WHERE link_id = l.id) AS click_count
      FROM links l WHERE l.id = ? AND l.user_id = ?`,
     [req.params.id, req.session.userId]
@@ -107,8 +107,8 @@ router.get('/:id', requireAuth, (req, res) => {
   }
 
   const where = conditions.join(' AND ');
-  const total = db.get(`SELECT COUNT(*) as count FROM clicks WHERE ${where}`, params);
-  const clicks = db.all(
+  const total = await db.get(`SELECT COUNT(*) as count FROM clicks WHERE ${where}`, params);
+  const clicks = await db.all(
     `SELECT * FROM clicks WHERE ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );
@@ -116,8 +116,8 @@ router.get('/:id', requireAuth, (req, res) => {
   res.json({ link, clicks, total: total.count, page, limit, hasMore: offset + clicks.length < total.count });
 });
 
-router.put('/:id', requireAuth, (req, res) => {
-  const link = db.get('SELECT id FROM links WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId]);
+router.put('/:id', requireAuth, async (req, res) => {
+  const link = await db.get('SELECT id FROM links WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId]);
   if (!link) return res.status(404).json({ error: 'Not found' });
 
   const { label, password, expires_at, utm_source, utm_medium, utm_campaign, group_id } = req.body;
@@ -136,33 +136,33 @@ router.put('/:id', requireAuth, (req, res) => {
 
   if (fields.length > 0) {
     values.push(link.id);
-    db.run(`UPDATE links SET ${fields.join(', ')} WHERE id = ?`, values);
+    await db.run(`UPDATE links SET ${fields.join(', ')} WHERE id = ?`, values);
   }
 
-  const updated = db.get('SELECT * FROM links WHERE id = ?', [link.id]);
+  const updated = await db.get('SELECT * FROM links WHERE id = ?', [link.id]);
   res.json(updated);
 });
 
-router.delete('/:id', requireAuth, (req, res) => {
-  const link = db.get('SELECT id FROM links WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId]);
+router.delete('/:id', requireAuth, async (req, res) => {
+  const link = await db.get('SELECT id FROM links WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId]);
   if (!link) return res.status(404).json({ error: 'Not found' });
-  db.run('DELETE FROM clicks WHERE link_id = ?', [link.id]);
-  db.run('DELETE FROM links WHERE id = ?', [link.id]);
+  await db.run('DELETE FROM clicks WHERE link_id = ?', [link.id]);
+  await db.run('DELETE FROM links WHERE id = ?', [link.id]);
   res.json({ ok: true });
 });
 
-router.get('/:id/export/json', requireAuth, (req, res) => {
-  const link = db.get('SELECT * FROM links WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId]);
+router.get('/:id/export/json', requireAuth, async (req, res) => {
+  const link = await db.get('SELECT * FROM links WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId]);
   if (!link) return res.status(404).json({ error: 'Not found' });
-  const clicks = db.all('SELECT * FROM clicks WHERE link_id = ? ORDER BY timestamp DESC', [link.id]);
+  const clicks = await db.all('SELECT * FROM clicks WHERE link_id = ? ORDER BY timestamp DESC', [link.id]);
   res.setHeader('Content-Disposition', `attachment; filename="link-${link.code}-clicks.json"`);
   res.json({ link, clicks });
 });
 
-router.get('/:id/export/csv', requireAuth, (req, res) => {
-  const link = db.get('SELECT * FROM links WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId]);
+router.get('/:id/export/csv', requireAuth, async (req, res) => {
+  const link = await db.get('SELECT * FROM links WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId]);
   if (!link) return res.status(404).json({ error: 'Not found' });
-  const clicks = db.all('SELECT * FROM clicks WHERE link_id = ? ORDER BY timestamp DESC', [link.id]);
+  const clicks = await db.all('SELECT * FROM clicks WHERE link_id = ? ORDER BY timestamp DESC', [link.id]);
   const header = 'timestamp,ip,lat,lng,address,client_lat,client_lng,user_agent';
   const rows = clicks.map(c =>
     `"${c.timestamp || ''}","${c.ip || ''}","${c.lat || ''}","${c.lng || ''}","${(c.address || '').replace(/"/g, '""')}","${c.client_lat || ''}","${c.client_lng || ''}","${(c.user_agent || '').replace(/"/g, '""')}"`
