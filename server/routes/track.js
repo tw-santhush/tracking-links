@@ -82,38 +82,33 @@ function trackingPageHtml(link, error) {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .card { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 400px; width: 100%; text-align: center; }
-    h2 { margin-bottom: 16px; }
-    p { margin-bottom: 12px; color: #555; font-size: 0.9rem; }
-    input { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; margin-bottom: 12px; }
-    .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; background: #0f3460; color: #fff; width: 100%; }
+    .card { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 360px; width: 100%; text-align: center; }
+    .btn { display: inline-block; padding: 12px 24px; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; background: #0f3460; color: #fff; width: 100%; }
     .btn:hover { opacity: 0.85; }
-    .error { color: #e74c3c; font-size: 0.85rem; margin-top: 8px; }
+    .text-sm { font-size: 0.8rem; color: #999; margin-top: 12px; }
     .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #0f3460; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 12px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="card" id="app">
-    <h2>You're being redirected</h2>
-    <p>Click the button to continue.</p>
-    <button class="btn" id="continueBtn">Continue to site</button>
-    <p class="text-sm text-muted" style="margin-top:12px;font-size:0.8rem;color:#999;" id="status"></p>
+    <p style="margin-bottom:16px;color:#555;">You're being redirected</p>
+    <button class="btn" id="continueBtn">Continue</button>
+    <p class="text-sm" id="status"></p>
   </div>
 
   <script>
     const link = ${JSON.stringify({ code: link.code, hasPassword: !!link.password_hash, destination: link.destination, expiresAt: link.expires_at })};
 
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      document.getElementById('app').innerHTML = '<h2>Link Expired</h2><p>This link is no longer available.</p>';
+      document.getElementById('app').innerHTML = '<p style="color:#e74c3c;">This link has expired.</p>';
     }
 
     function showButton(msg) {
       document.getElementById('app').innerHTML = \`
-        <h2>You're being redirected</h2>
-        <p>$\{msg}</p>
-        <button class="btn" id="continueBtn">Continue to site</button>
-        <p class="text-sm text-muted" style="margin-top:12px;font-size:0.8rem;color:#999;" id="status"></p>
+        <p style="margin-bottom:16px;color:#555;">$\{msg}</p>
+        <button class="btn" id="continueBtn">Continue</button>
+        <p class="text-sm" id="status"></p>
       \`;
       document.getElementById('continueBtn').addEventListener('click', requestGeo);
     }
@@ -281,11 +276,10 @@ function getFingerprint() {
 
     if (link.hasPassword) {
       document.getElementById('app').innerHTML = \`
-        <h2>Password Required</h2>
-        <p>This link is password-protected.</p>
-        <input type="password" id="password" placeholder="Enter password" />
+        <p style="margin-bottom:16px;color:#555;">This link is password-protected.</p>
+        <input type="password" id="password" placeholder="Password" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:0.95rem;margin-bottom:12px;" />
         <button class="btn" onclick="verifyPassword()">Submit</button>
-        <div id="error" class="error"></div>
+        <p class="text-sm" id="error" style="color:#e74c3c;"></p>
       \`;
     }
 
